@@ -1,0 +1,188 @@
+[
+  {
+    "id": "slugs_snails",
+    "name": "Slugs and snails",
+    "category": "pest",
+    "summary": "Common pests that damage seedlings, leafy greens, brassicas, strawberries, and young transplants.",
+    "signs": [
+      "Irregular holes in leaves",
+      "Seedlings cut down overnight",
+      "Silvery slime trails",
+      "Damage worse in damp conditions"
+    ],
+    "commonCrops": [
+      "lettuce",
+      "spinach",
+      "silverbeet",
+      "broccoli",
+      "cabbage",
+      "strawberry"
+    ],
+    "actions": [
+      "Check plants at night or early morning",
+      "Remove hiding places such as boards, dense weeds, and old pots",
+      "Use barriers around vulnerable seedlings",
+      "Hand-pick pests where practical",
+      "Protect new seedlings until established"
+    ],
+    "prevention": [
+      "Improve airflow around seedlings",
+      "Avoid leaving trays and pots sitting in wet corners",
+      "Keep paths and bed edges tidy",
+      "Raise seedlings before planting out if pressure is high"
+    ],
+    "seasonNotes": "Most noticeable in damp, mild conditions and after rain."
+  },
+  {
+    "id": "white_butterfly_caterpillars",
+    "name": "White butterfly caterpillars",
+    "category": "pest",
+    "summary": "Green caterpillars that feed on brassicas such as broccoli, cabbage, kale, and cauliflower.",
+    "signs": [
+      "Holes in brassica leaves",
+      "Green droppings on leaves",
+      "Small green caterpillars under leaves",
+      "White butterflies flying around crops"
+    ],
+    "commonCrops": [
+      "broccoli",
+      "cabbage",
+      "cauliflower",
+      "kale"
+    ],
+    "actions": [
+      "Inspect the undersides of leaves",
+      "Remove eggs and caterpillars by hand",
+      "Use fine insect netting before butterflies lay eggs",
+      "Keep brassicas grouped so they are easier to protect"
+    ],
+    "prevention": [
+      "Net brassicas early",
+      "Check seedlings before planting",
+      "Avoid leaving old brassica plants in the garden"
+    ],
+    "seasonNotes": "Most active through warmer months when butterflies are present."
+  },
+  {
+    "id": "aphids",
+    "name": "Aphids",
+    "category": "pest",
+    "summary": "Small sap-sucking insects that cluster on soft shoots, leaf undersides, and new growth.",
+    "signs": [
+      "Clusters of small insects on new growth",
+      "Sticky honeydew on leaves",
+      "Distorted or curled leaves",
+      "Ants farming aphids"
+    ],
+    "commonCrops": [
+      "broad_beans",
+      "peas",
+      "kale",
+      "cabbage",
+      "capsicum",
+      "chilli"
+    ],
+    "actions": [
+      "Squash small colonies by hand",
+      "Spray affected shoots with water",
+      "Remove badly infested soft tips",
+      "Encourage beneficial insects by planting flowers nearby"
+    ],
+    "prevention": [
+      "Avoid overfeeding with nitrogen",
+      "Check soft new growth regularly",
+      "Keep plants growing steadily rather than stressed"
+    ],
+    "seasonNotes": "Often builds up in spring and warm sheltered conditions."
+  },
+  {
+    "id": "powdery_mildew",
+    "name": "Powdery mildew",
+    "category": "disease",
+    "summary": "Fungal disease that appears as pale powdery patches, especially on cucurbits and stressed plants.",
+    "signs": [
+      "White or grey powdery patches on leaves",
+      "Yellowing older leaves",
+      "Reduced plant vigour",
+      "Worse on crowded or stressed plants"
+    ],
+    "commonCrops": [
+      "courgette",
+      "cucumber",
+      "pumpkin"
+    ],
+    "actions": [
+      "Remove badly affected leaves",
+      "Improve airflow around plants",
+      "Water soil rather than foliage",
+      "Keep plants evenly watered during dry spells"
+    ],
+    "prevention": [
+      "Use wider spacing for cucurbits",
+      "Avoid overcrowding",
+      "Water consistently",
+      "Plant in sunny open positions"
+    ],
+    "seasonNotes": "Common later in the season, especially when plants are stressed."
+  },
+  {
+    "id": "blossom_end_rot",
+    "name": "Blossom end rot",
+    "category": "crop_problem",
+    "summary": "A watering and calcium uptake problem causing dark sunken patches at the blossom end of fruit.",
+    "signs": [
+      "Dark sunken patch at the base of fruit",
+      "Affected fruit often appears while plant otherwise looks healthy",
+      "Common after irregular watering"
+    ],
+    "commonCrops": [
+      "tomato",
+      "capsicum",
+      "chilli",
+      "courgette"
+    ],
+    "actions": [
+      "Remove badly affected fruit",
+      "Water more consistently",
+      "Mulch soil to reduce moisture swings",
+      "Avoid heavy overfeeding"
+    ],
+    "prevention": [
+      "Keep soil moisture steady",
+      "Use good-quality compost and soil",
+      "Avoid letting containers dry out completely",
+      "Avoid root disturbance once fruiting starts"
+    ],
+    "seasonNotes": "Often appears during warm weather or when containers dry out."
+  },
+  {
+    "id": "bolting",
+    "name": "Bolting",
+    "category": "crop_problem",
+    "summary": "Plants switch from leafy growth to flowering, often making leaves bitter or harvest quality poor.",
+    "signs": [
+      "Tall flower stalk forming",
+      "Leaves become smaller or bitter",
+      "Rapid change after heat or stress"
+    ],
+    "commonCrops": [
+      "lettuce",
+      "spinach",
+      "coriander",
+      "silverbeet"
+    ],
+    "actions": [
+      "Harvest usable leaves promptly",
+      "Remove bolted plants if quality is poor",
+      "Resow with season-appropriate crops",
+      "Use partial shade in warm conditions"
+    ],
+    "prevention": [
+      "Sow cool-season crops at the right time",
+      "Keep watering consistent",
+      "Choose heat-tolerant varieties where possible",
+      "Succession sow small amounts often"
+    ],
+    "seasonNotes": "Common as temperatures rise or when plants experience stress."
+  }
+]

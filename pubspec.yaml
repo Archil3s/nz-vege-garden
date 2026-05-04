@@ -37,3 +37,4 @@ flutter:
     - assets/data/crops.json
     - assets/data/nz_regions.json
     - assets/data/planting_rules.json
+    - assets/data/pests.json

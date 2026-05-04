@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, bundled seed data, a Flutter scaffold, a local JSON data layer, placeholder app screens, the first usable local setup flow, and the first garden bed storage layer.
+The repo now contains the planning documents, bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, and a working local garden bed planner UI.
 
 ## Completed
 
@@ -105,7 +105,7 @@ Current screens:
 
 - Home: shows crops plantable now
 - Crops: lists crop guide entries
-- Beds: placeholder for garden bed planner
+- Beds: working garden bed planner
 - Tasks: placeholder weekly tasks
 - Pests: placeholder pest/problem guide
 - Settings: editable local setup screen
@@ -149,26 +149,54 @@ Implemented:
 - Local garden bed storage with `shared_preferences`
 - Add, update, delete, and load methods for garden beds
 
+### Garden bed planner UI
+
+Added:
+
+```text
+lib/features/garden_beds/add_garden_bed_screen.dart
+```
+
+Updated:
+
+```text
+lib/features/garden_beds/garden_beds_screen.dart
+```
+
+Implemented:
+
+- Empty state for users with no beds
+- Add-bed screen
+- Required bed name field
+- Bed type selector
+- Optional length and width fields
+- Sun exposure selector
+- Wind exposure selector
+- Notes field
+- Local save through `GardenBedRepository`
+- Saved garden bed list
+- Bed cards showing type, exposure, dimensions, area, and notes
+- Delete support for saved beds
+
 ## In progress
 
-### Garden bed planner UI
+### Crop detail screen
 
 Goal:
 
-- Let users create named beds or containers
-- Show saved beds on the Garden Beds screen
-- Add a basic creation form
+- Open crop details from the Crop Guide screen
+- Show full crop information
+- Surface frost/container/beginner flags clearly
+- Prepare for adding sowing, transplanting, and harvest guidance per crop
 
 ## Next planned work
 
-1. Add garden bed creation form
-2. Show saved beds on the Garden Beds screen
-3. Add crop detail screen
-4. Expand seed crop data
-5. Add pest/problem seed data
-6. Add task generation rules
-7. Add local notifications
-8. Add app tests once the first workflow is stable
+1. Add crop detail screen
+2. Expand seed crop data
+3. Add pest/problem seed data
+4. Add task generation rules
+5. Add local notifications
+6. Add app tests once the first workflow is stable
 
 ## GitHub issues created
 

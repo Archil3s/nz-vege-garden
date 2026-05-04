@@ -38,3 +38,4 @@ flutter:
     - assets/data/nz_regions.json
     - assets/data/planting_rules.json
     - assets/data/pests.json
+    - assets/data/task_rules.json

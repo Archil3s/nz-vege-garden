@@ -6,6 +6,7 @@ import '../../data/models/garden_bed.dart';
 import '../../data/models/garden_bed_planting.dart';
 import 'add_bed_planting_screen.dart';
 import 'add_garden_bed_screen.dart';
+import 'edit_bed_planting_screen.dart';
 
 class GardenBedsScreen extends StatefulWidget {
   const GardenBedsScreen({super.key});
@@ -54,6 +55,24 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => AddBedPlantingScreen(bed: bed),
+      ),
+    );
+
+    if (saved == true) {
+      _reloadGardenBeds();
+    }
+  }
+
+  Future<void> _openEditPlantingScreen({
+    required GardenBed bed,
+    required GardenBedPlanting planting,
+  }) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EditBedPlantingScreen(
+          bed: bed,
+          planting: planting,
+        ),
       ),
     );
 
@@ -139,6 +158,10 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
                 onAddCropPressed: () => _openAddPlantingScreen(bed),
                 onDeletePressed: () => _deleteGardenBed(bed),
                 onDeletePlantingPressed: _deletePlanting,
+                onEditPlantingPressed: (planting) => _openEditPlantingScreen(
+                  bed: bed,
+                  planting: planting,
+                ),
               );
             },
           );
@@ -202,6 +225,7 @@ class _GardenBedCard extends StatelessWidget {
     required this.onAddCropPressed,
     required this.onDeletePressed,
     required this.onDeletePlantingPressed,
+    required this.onEditPlantingPressed,
   });
 
   final GardenBed bed;
@@ -209,6 +233,7 @@ class _GardenBedCard extends StatelessWidget {
   final VoidCallback onAddCropPressed;
   final VoidCallback onDeletePressed;
   final ValueChanged<GardenBedPlanting> onDeletePlantingPressed;
+  final ValueChanged<GardenBedPlanting> onEditPlantingPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -299,6 +324,7 @@ class _GardenBedCard extends StatelessWidget {
                   leading: const Icon(Icons.eco_outlined),
                   title: Text(planting.cropName),
                   subtitle: Text(_plantingSubtitle(planting)),
+                  onTap: () => onEditPlantingPressed(planting),
                   trailing: IconButton(
                     tooltip: 'Remove crop',
                     onPressed: () => onDeletePlantingPressed(planting),

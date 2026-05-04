@@ -9,6 +9,7 @@ class AppSettingsRepository {
   static const _frostRiskKey = 'settings.frostRisk';
   static const _windExposureKey = 'settings.windExposure';
   static const _gardenTypeKey = 'settings.gardenType';
+  static const _weeklyReminderEnabledKey = 'settings.weeklyReminderEnabled';
 
   Future<AppSettings> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -19,6 +20,8 @@ class AppSettingsRepository {
       frostRisk: prefs.getString(_frostRiskKey) ?? defaults.frostRisk,
       windExposure: prefs.getString(_windExposureKey) ?? defaults.windExposure,
       gardenType: prefs.getString(_gardenTypeKey) ?? defaults.gardenType,
+      weeklyReminderEnabled:
+          prefs.getBool(_weeklyReminderEnabledKey) ?? defaults.weeklyReminderEnabled,
     );
   }
 
@@ -29,6 +32,7 @@ class AppSettingsRepository {
     await prefs.setString(_frostRiskKey, settings.frostRisk);
     await prefs.setString(_windExposureKey, settings.windExposure);
     await prefs.setString(_gardenTypeKey, settings.gardenType);
+    await prefs.setBool(_weeklyReminderEnabledKey, settings.weeklyReminderEnabled);
   }
 
   Future<void> updateRegion(String regionId) async {
@@ -49,5 +53,10 @@ class AppSettingsRepository {
   Future<void> updateGardenType(String gardenType) async {
     final current = await loadSettings();
     await saveSettings(current.copyWith(gardenType: gardenType));
+  }
+
+  Future<void> updateWeeklyReminderEnabled(bool enabled) async {
+    final current = await loadSettings();
+    await saveSettings(current.copyWith(weeklyReminderEnabled: enabled));
   }
 }

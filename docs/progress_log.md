@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, bundled seed data, a Flutter scaffold, a local JSON data layer, placeholder app screens, and the start of local user settings.
+The repo now contains the planning documents, bundled seed data, a Flutter scaffold, a local JSON data layer, placeholder app screens, and the first usable local setup flow.
 
 ## Completed
 
@@ -108,46 +108,50 @@ Current screens:
 - Beds: placeholder for garden bed planner
 - Tasks: placeholder weekly tasks
 - Pests: placeholder pest/problem guide
-- Settings: lists available NZ regions
+- Settings: editable local setup screen
 
-### Settings work started
+### Local setup flow
 
 Added:
 
 ```text
 lib/data/models/app_settings.dart
+lib/data/app_settings_repository.dart
 ```
 
-This defines default local app settings for:
+Implemented:
 
-- Region
-- Frost risk
-- Wind exposure
-- Garden type
+- Default app settings
+- Local settings persistence with `shared_preferences`
+- Editable NZ region selector
+- Editable frost risk selector
+- Editable wind exposure selector
+- Editable garden type selector
+- Home screen now reads saved settings
+- What-to-plant-now now uses the saved region instead of a hardcoded region
 
 ## In progress
 
-### Editable setup flow
+### Garden bed planner
 
 Goal:
 
-- Persist user settings with `shared_preferences`
-- Let users choose their NZ region
-- Use the saved region on the Home screen
-- Show selected region on Settings screen
+- Add a local garden bed model
+- Add a simple local garden bed repository
+- Let users create named beds or containers
+- Show saved beds on the Garden Beds screen
 
 ## Next planned work
 
-1. Add `AppSettingsRepository`
-2. Update Home screen to use saved region
-3. Update Settings screen with editable region selector
-4. Add frost/wind/garden-type selectors
-5. Add a basic garden bed model
-6. Add local garden bed creation
-7. Add crop detail screen
-8. Expand seed crop data
-9. Add pest/problem seed data
-10. Add app tests once the first workflow is stable
+1. Add a basic garden bed model
+2. Add local garden bed storage
+3. Add garden bed creation form
+4. Add crop detail screen
+5. Expand seed crop data
+6. Add pest/problem seed data
+7. Add task generation rules
+8. Add local notifications
+9. Add app tests once the first workflow is stable
 
 ## GitHub issues created
 

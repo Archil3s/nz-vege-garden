@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../data/garden_bed_planting_repository.dart';
 import '../../data/garden_bed_repository.dart';
 import '../../data/models/garden_bed.dart';
+import '../../data/models/garden_bed_planting.dart';
+import 'add_bed_planting_screen.dart';
 import 'add_garden_bed_screen.dart';
 
 class GardenBedsScreen extends StatefulWidget {
@@ -12,18 +15,26 @@ class GardenBedsScreen extends StatefulWidget {
 }
 
 class _GardenBedsScreenState extends State<GardenBedsScreen> {
-  final _repository = const GardenBedRepository();
-  late Future<List<GardenBed>> _gardenBedsFuture;
+  final _bedRepository = const GardenBedRepository();
+  final _plantingRepository = const GardenBedPlantingRepository();
+  late Future<_GardenBedsData> _gardenBedsFuture;
 
   @override
   void initState() {
     super.initState();
-    _gardenBedsFuture = _repository.loadGardenBeds();
+    _gardenBedsFuture = _loadGardenBedsData();
+  }
+
+  Future<_GardenBedsData> _loadGardenBedsData() async {
+    final beds = await _bedRepository.loadGardenBeds();
+    final plantings = await _plantingRepository.loadPlantings();
+
+    return _GardenBedsData(beds: beds, plantings: plantings);
   }
 
   void _reloadGardenBeds() {
     setState(() {
-      _gardenBedsFuture = _repository.loadGardenBeds();
+      _gardenBedsFuture = _loadGardenBedsData();
     });
   }
 
@@ -39,8 +50,21 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
     }
   }
 
+  Future<void> _openAddPlantingScreen(GardenBed bed) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AddBedPlantingScreen(bed: bed),
+      ),
+    );
+
+    if (saved == true) {
+      _reloadGardenBeds();
+    }
+  }
+
   Future<void> _deleteGardenBed(GardenBed bed) async {
-    await _repository.deleteGardenBed(bed.id);
+    await _bedRepository.deleteGardenBed(bed.id);
+    await _plantingRepository.deletePlantingsForBed(bed.id);
 
     if (!mounted) {
       return;
@@ -53,13 +77,27 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
     _reloadGardenBeds();
   }
 
+  Future<void> _deletePlanting(GardenBedPlanting planting) async {
+    await _plantingRepository.deletePlanting(planting.id);
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Removed ${planting.cropName}.')),
+    );
+
+    _reloadGardenBeds();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My garden beds'),
       ),
-      body: FutureBuilder<List<GardenBed>>(
+      body: FutureBuilder<_GardenBedsData>(
         future: _gardenBedsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -75,7 +113,9 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
             );
           }
 
-          final beds = snapshot.data ?? const <GardenBed>[];
+          final data = snapshot.data;
+          final beds = data?.beds ?? const <GardenBed>[];
+          final plantings = data?.plantings ?? const <GardenBedPlanting>[];
 
           if (beds.isEmpty) {
             return _EmptyGardenBedsState(
@@ -89,10 +129,16 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final bed = beds[index];
+              final bedPlantings = plantings
+                  .where((planting) => planting.bedId == bed.id)
+                  .toList(growable: false);
 
               return _GardenBedCard(
                 bed: bed,
+                plantings: bedPlantings,
+                onAddCropPressed: () => _openAddPlantingScreen(bed),
                 onDeletePressed: () => _deleteGardenBed(bed),
+                onDeletePlantingPressed: _deletePlanting,
               );
             },
           );
@@ -152,11 +198,17 @@ class _EmptyGardenBedsState extends StatelessWidget {
 class _GardenBedCard extends StatelessWidget {
   const _GardenBedCard({
     required this.bed,
+    required this.plantings,
+    required this.onAddCropPressed,
     required this.onDeletePressed,
+    required this.onDeletePlantingPressed,
   });
 
   final GardenBed bed;
+  final List<GardenBedPlanting> plantings;
+  final VoidCallback onAddCropPressed;
   final VoidCallback onDeletePressed;
+  final ValueChanged<GardenBedPlanting> onDeletePlantingPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -222,10 +274,48 @@ class _GardenBedCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(bed.notes),
             ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Crops in this bed',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onAddCropPressed,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add crop'),
+                ),
+              ],
+            ),
+            if (plantings.isEmpty)
+              const Text('No crops added yet.')
+            else
+              ...plantings.map(
+                (planting) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.eco_outlined),
+                  title: Text(planting.cropName),
+                  subtitle: Text(
+                    '${_formatValue(planting.status)} • ${_formatDate(planting.plantedDate)}',
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'Remove crop',
+                    onPressed: () => onDeletePlantingPressed(planting),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
   String _formatValue(String value) {
@@ -252,4 +342,14 @@ class _InfoChip extends StatelessWidget {
       label: Text(label),
     );
   }
+}
+
+class _GardenBedsData {
+  const _GardenBedsData({
+    required this.beds,
+    required this.plantings,
+  });
+
+  final List<GardenBed> beds;
+  final List<GardenBedPlanting> plantings;
 }

@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, crop-to-bed planting with estimated harvest windows, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and the first local notification foundation.
+The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and the first local notification foundation.
 
 GitHub Pages preview work has been removed for now. The app will be tested locally on a PC with Flutter tooling.
 
@@ -80,6 +80,7 @@ Added:
 lib/data/models/garden_bed_planting.dart
 lib/data/garden_bed_planting_repository.dart
 lib/features/garden_beds/add_bed_planting_screen.dart
+lib/features/garden_beds/edit_bed_planting_screen.dart
 ```
 
 Updated:
@@ -101,6 +102,12 @@ Implemented:
 - Harvest window automatically calculated from crop harvest range
 - Estimated harvest window preview while adding a crop
 - Bed cards now show planted crops and harvest estimates
+- Open planted crop detail/editor from bed cards
+- Edit planting status
+- Edit planting date
+- Edit planting notes
+- Recalculate harvest estimate when planting date changes
+- Delete planting from detail screen
 - Remove planted crop from a bed
 - Delete bed also removes plantings for that bed
 
@@ -283,7 +290,7 @@ Current screens:
 
 - Home: shows crops plantable now
 - Crops: lists crop guide entries and opens detail pages
-- Beds: working garden bed planner with crop planting and harvest estimates
+- Beds: working garden bed planner with crop planting, harvest estimates, and planting edits
 - Tasks: generated weekly task recommendations
 - Pests: offline pest/problem guide
 - Settings: editable local setup screen with reminder toggle
@@ -397,7 +404,7 @@ Goal:
 1. Test locally on PC
 2. Fix any compile/analyzer issues
 3. Harden local notifications after device testing
-4. Add planting detail/edit screen
+4. Add planting detail/edit screen polish if needed after testing
 5. Add app tests once the first workflow is stable
 
 ## GitHub issues created

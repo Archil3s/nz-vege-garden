@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'models/crop.dart';
 import 'models/nz_region.dart';
+import 'models/pest_problem.dart';
 import 'models/planting_rule.dart';
 
 class GardenDataRepository {
@@ -36,6 +37,16 @@ class GardenDataRepository {
     return data
         .cast<Map<String, dynamic>>()
         .map(PlantingRule.fromJson)
+        .toList(growable: false);
+  }
+
+  Future<List<PestProblem>> loadPestProblems() async {
+    final content = await rootBundle.loadString('assets/data/pests.json');
+    final data = jsonDecode(content) as List<dynamic>;
+
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(PestProblem.fromJson)
         .toList(growable: false);
   }
 

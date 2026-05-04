@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, and navigable crop detail pages.
+The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, and navigable crop detail pages.
 
 ## Completed
 
@@ -47,8 +47,42 @@ assets/data/planting_rules.json
 Initial data includes:
 
 - 11 broad NZ regions
-- Initial vegetable/herb crop profiles
+- Expanded vegetable/herb crop profiles
 - Basic planting rules for crop, month, method, and region
+
+### Expanded crop database
+
+Updated:
+
+```text
+assets/data/crops.json
+```
+
+Added or expanded crops including:
+
+```text
+potato
+kumara
+kale
+cabbage
+cauliflower
+broad_beans
+dwarf_beans
+courgette
+cucumber
+pumpkin
+capsicum
+chilli
+onion
+leek
+spring_onion
+sweetcorn
+parsley
+coriander
+chives
+```
+
+The crop guide now has broader MVP coverage for common New Zealand home vegetable gardens.
 
 ### Flutter scaffold
 
@@ -205,19 +239,19 @@ Implemented:
 
 ## In progress
 
-### Expand seed crop data
+### Pest/problem seed data
 
 Goal:
 
-- Add more home vegetable crops
-- Add more herb crops
-- Improve existing crop metadata
-- Prepare for richer crop-specific advice
+- Add common home vegetable pests
+- Add common crop problems
+- Show pest/problem data in the existing Pests screen
+- Keep all advice offline and non-commercial
 
 ## Next planned work
 
-1. Expand seed crop data
-2. Add pest/problem seed data
+1. Add pest/problem seed data
+2. Connect pest/problem data to the Pests screen
 3. Add task generation rules
 4. Add local notifications
 5. Add app tests once the first workflow is stable

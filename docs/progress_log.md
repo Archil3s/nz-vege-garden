@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and the first local notification foundation.
+The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, crop-to-bed planting, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and the first local notification foundation.
 
 GitHub Pages preview work has been removed for now. The app will be tested locally on a PC with Flutter tooling.
 
@@ -71,6 +71,35 @@ Initial data includes:
 - Basic planting rules for crop, month, method, and region
 - Pest, disease, and crop problem guidance
 - Weekly task generation rules
+
+### Crop-to-bed planting flow
+
+Added:
+
+```text
+lib/data/models/garden_bed_planting.dart
+lib/data/garden_bed_planting_repository.dart
+lib/features/garden_beds/add_bed_planting_screen.dart
+```
+
+Updated:
+
+```text
+lib/features/garden_beds/garden_beds_screen.dart
+```
+
+Implemented:
+
+- Local model for crops planted in a bed
+- Local planting storage with `shared_preferences`
+- Add crop to a saved bed
+- Crop selector using bundled crop data
+- Planting status selector
+- Planting date picker
+- Planting notes
+- Bed cards now show planted crops
+- Remove planted crop from a bed
+- Delete bed also removes plantings for that bed
 
 ### Expanded crop database
 
@@ -251,7 +280,7 @@ Current screens:
 
 - Home: shows crops plantable now
 - Crops: lists crop guide entries and opens detail pages
-- Beds: working garden bed planner
+- Beds: working garden bed planner with crop planting
 - Tasks: generated weekly task recommendations
 - Pests: offline pest/problem guide
 - Settings: editable local setup screen with reminder toggle
@@ -365,7 +394,7 @@ Goal:
 1. Test locally on PC
 2. Fix any compile/analyzer issues
 3. Harden local notifications after device testing
-4. Add crop-to-bed planting flow
+4. Add estimated harvest date support for bed plantings
 5. Add app tests once the first workflow is stable
 
 ## GitHub issues created

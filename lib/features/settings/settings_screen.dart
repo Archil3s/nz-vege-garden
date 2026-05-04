@@ -4,6 +4,7 @@ import '../../data/app_settings_repository.dart';
 import '../../data/garden_data_repository.dart';
 import '../../data/models/app_settings.dart';
 import '../../data/models/nz_region.dart';
+import '../../services/notifications/local_notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -46,6 +47,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _settingsDataFuture = _loadSettingsData();
     });
+  }
+
+  Future<void> _setWeeklyReminder(AppSettings settings, bool enabled) async {
+    if (enabled) {
+      final granted = await LocalNotificationService.instance.requestPermissions();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notification permission was not granted.'),
+          ),
+        );
+        return;
+      }
+
+      await LocalNotificationService.instance.showWeeklyReminderPreview();
+    } else {
+      await LocalNotificationService.instance.cancelWeeklyReminder();
+    }
+
+    await _saveSettings(settings.copyWith(weeklyReminderEnabled: enabled));
   }
 
   @override
@@ -166,6 +192,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   _saveSettings(data.settings.copyWith(gardenType: value));
                 },
+              ),
+              Card(
+                child: SwitchListTile(
+                  secondary: const Icon(Icons.notifications_outlined),
+                  title: const Text('Weekly garden reminder'),
+                  subtitle: const Text(
+                    'Stores the preference locally. For now, enabling this also sends a preview notification so it can be tested on-device.',
+                  ),
+                  value: data.settings.weeklyReminderEnabled,
+                  onChanged: (enabled) => _setWeeklyReminder(data.settings, enabled),
+                ),
               ),
               const SizedBox(height: 16),
               Text(

@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, bundled seed data, a Flutter scaffold, a local JSON data layer, placeholder app screens, and the first usable local setup flow.
+The repo now contains the planning documents, bundled seed data, a Flutter scaffold, a local JSON data layer, placeholder app screens, the first usable local setup flow, and the first garden bed storage layer.
 
 ## Completed
 
@@ -130,28 +130,45 @@ Implemented:
 - Home screen now reads saved settings
 - What-to-plant-now now uses the saved region instead of a hardcoded region
 
+### Garden bed storage foundation
+
+Added:
+
+```text
+lib/data/models/garden_bed.dart
+lib/data/garden_bed_repository.dart
+```
+
+Implemented:
+
+- Local `GardenBed` model
+- JSON serialisation for garden beds
+- Optional bed dimensions in centimetres
+- Calculated bed area helpers
+- Sun exposure and wind exposure fields
+- Local garden bed storage with `shared_preferences`
+- Add, update, delete, and load methods for garden beds
+
 ## In progress
 
-### Garden bed planner
+### Garden bed planner UI
 
 Goal:
 
-- Add a local garden bed model
-- Add a simple local garden bed repository
 - Let users create named beds or containers
 - Show saved beds on the Garden Beds screen
+- Add a basic creation form
 
 ## Next planned work
 
-1. Add a basic garden bed model
-2. Add local garden bed storage
-3. Add garden bed creation form
-4. Add crop detail screen
-5. Expand seed crop data
-6. Add pest/problem seed data
-7. Add task generation rules
-8. Add local notifications
-9. Add app tests once the first workflow is stable
+1. Add garden bed creation form
+2. Show saved beds on the Garden Beds screen
+3. Add crop detail screen
+4. Expand seed crop data
+5. Add pest/problem seed data
+6. Add task generation rules
+7. Add local notifications
+8. Add app tests once the first workflow is stable
 
 ## GitHub issues created
 

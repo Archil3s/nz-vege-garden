@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, and navigable crop detail pages.
+The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, navigable crop detail pages, and an offline pest/problem guide.
 
 ## Completed
 
@@ -42,6 +42,7 @@ Added:
 assets/data/nz_regions.json
 assets/data/crops.json
 assets/data/planting_rules.json
+assets/data/pests.json
 ```
 
 Initial data includes:
@@ -49,6 +50,7 @@ Initial data includes:
 - 11 broad NZ regions
 - Expanded vegetable/herb crop profiles
 - Basic planting rules for crop, month, method, and region
+- Pest, disease, and crop problem guidance
 
 ### Expanded crop database
 
@@ -83,6 +85,34 @@ chives
 ```
 
 The crop guide now has broader MVP coverage for common New Zealand home vegetable gardens.
+
+### Pest/problem guide data
+
+Added:
+
+```text
+assets/data/pests.json
+lib/data/models/pest_problem.dart
+```
+
+Updated:
+
+```text
+pubspec.yaml
+lib/data/garden_data_repository.dart
+lib/features/pests/pest_guide_screen.dart
+```
+
+Implemented:
+
+- Offline pest/problem seed data
+- PestProblem model
+- Asset registration for pest data
+- Data repository loading for pest/problem entries
+- Data-driven Pests screen
+- Expandable pest/problem cards
+- Signs, actions, prevention notes, and seasonal notes
+- Category icons for pests, diseases, and crop problems
 
 ### Flutter scaffold
 
@@ -120,6 +150,7 @@ The data layer can:
 - Load crop seed data
 - Load NZ region seed data
 - Load planting rules
+- Load pest/problem seed data
 - Filter crops by selected month and region
 
 ### Initial screens
@@ -141,7 +172,7 @@ Current screens:
 - Crops: lists crop guide entries and opens detail pages
 - Beds: working garden bed planner
 - Tasks: placeholder weekly tasks
-- Pests: placeholder pest/problem guide
+- Pests: offline pest/problem guide
 - Settings: editable local setup screen
 
 ### Local setup flow
@@ -239,22 +270,21 @@ Implemented:
 
 ## In progress
 
-### Pest/problem seed data
+### Task generation rules
 
 Goal:
 
-- Add common home vegetable pests
-- Add common crop problems
-- Show pest/problem data in the existing Pests screen
-- Keep all advice offline and non-commercial
+- Add bundled weekly task rules
+- Generate simple weekly jobs from month, region, and app settings
+- Show generated tasks on the Tasks screen
+- Keep task guidance offline and zero-cost
 
 ## Next planned work
 
-1. Add pest/problem seed data
-2. Connect pest/problem data to the Pests screen
-3. Add task generation rules
-4. Add local notifications
-5. Add app tests once the first workflow is stable
+1. Add task generation rules
+2. Connect task rules to the Tasks screen
+3. Add local notifications
+4. Add app tests once the first workflow is stable
 
 ## GitHub issues created
 

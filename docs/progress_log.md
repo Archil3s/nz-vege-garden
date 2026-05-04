@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, navigable crop detail pages, an offline pest/problem guide, and generated weekly task recommendations.
+The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and the first local notification foundation.
 
 GitHub Pages preview work has been removed for now. The app will be tested locally on a PC with Flutter tooling.
 
@@ -165,6 +165,35 @@ Implemented:
 - Task cards with task type icons, title, description, priority, and type
 - Empty state when no task rules match
 
+### Local notifications foundation
+
+Added:
+
+```text
+lib/services/notifications/local_notification_service.dart
+```
+
+Updated:
+
+```text
+lib/main.dart
+lib/data/models/app_settings.dart
+lib/data/app_settings_repository.dart
+lib/features/settings/settings_screen.dart
+```
+
+Implemented:
+
+- Local notification service wrapper
+- App startup notification initialisation
+- Notification permission request helper
+- Weekly reminder preference stored locally
+- Settings toggle for weekly garden reminder
+- Preview notification when enabling reminders
+- Local cancellation when disabling reminders
+
+Note: this is the foundation for notification testing. A true scheduled weekly reminder may need platform-specific configuration once tested on Android/iOS.
+
 ### Flutter scaffold
 
 Added:
@@ -225,7 +254,7 @@ Current screens:
 - Beds: working garden bed planner
 - Tasks: generated weekly task recommendations
 - Pests: offline pest/problem guide
-- Settings: editable local setup screen
+- Settings: editable local setup screen with reminder toggle
 
 ### Local setup flow
 
@@ -322,20 +351,22 @@ Implemented:
 
 ## In progress
 
-### Local notifications
+### Testing and platform hardening
 
 Goal:
 
-- Initialise local notifications
-- Let users enable a weekly gardening reminder
-- Keep reminders local on-device
-- Avoid server push notifications and backend cost
+- Run the app on PC with Flutter tooling
+- Fix compile/analyzer errors found locally
+- Verify notification behaviour on Android/iOS
+- Add more useful tests once the app compiles cleanly on local tooling
 
 ## Next planned work
 
-1. Add local notification service
-2. Add notification setting toggle
-3. Add app tests once the first workflow is stable
+1. Test locally on PC
+2. Fix any compile/analyzer issues
+3. Harden local notifications after device testing
+4. Add crop-to-bed planting flow
+5. Add app tests once the first workflow is stable
 
 ## GitHub issues created
 

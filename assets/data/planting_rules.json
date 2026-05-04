@@ -1,0 +1,98 @@
+[
+  {
+    "cropId": "garlic",
+    "regionId": "all",
+    "method": "direct_sow",
+    "startMonth": 4,
+    "endMonth": 7,
+    "riskNote": "Plant cloves in the cool season. Avoid waterlogged soil."
+  },
+  {
+    "cropId": "lettuce",
+    "regionId": "all",
+    "method": "direct_sow",
+    "startMonth": 2,
+    "endMonth": 11,
+    "riskNote": "In hot areas, grow in partial shade and keep evenly watered."
+  },
+  {
+    "cropId": "spinach",
+    "regionId": "all",
+    "method": "direct_sow",
+    "startMonth": 3,
+    "endMonth": 10,
+    "riskNote": "Avoid hot summer sowing where plants bolt quickly."
+  },
+  {
+    "cropId": "silverbeet",
+    "regionId": "all",
+    "method": "direct_sow",
+    "startMonth": 2,
+    "endMonth": 11,
+    "riskNote": "Reliable in most regions if kept watered."
+  },
+  {
+    "cropId": "carrot",
+    "regionId": "all",
+    "method": "direct_sow",
+    "startMonth": 8,
+    "endMonth": 4,
+    "riskNote": "Direct sow only. Keep seedbed moist until germination."
+  },
+  {
+    "cropId": "radish",
+    "regionId": "all",
+    "method": "direct_sow",
+    "startMonth": 2,
+    "endMonth": 11,
+    "riskNote": "Fast crop. Sow small batches often."
+  },
+  {
+    "cropId": "peas",
+    "regionId": "all",
+    "method": "direct_sow",
+    "startMonth": 3,
+    "endMonth": 9,
+    "riskNote": "Provide support and protect seedlings from birds."
+  },
+  {
+    "cropId": "broccoli",
+    "regionId": "all",
+    "method": "transplant",
+    "startMonth": 2,
+    "endMonth": 8,
+    "riskNote": "Check for caterpillars and aphids. Netting can help."
+  },
+  {
+    "cropId": "tomato",
+    "regionId": "northland",
+    "method": "transplant",
+    "startMonth": 9,
+    "endMonth": 12,
+    "riskNote": "Frost tender. Plant outside only when frost risk has passed."
+  },
+  {
+    "cropId": "tomato",
+    "regionId": "auckland",
+    "method": "transplant",
+    "startMonth": 10,
+    "endMonth": 12,
+    "riskNote": "Frost tender. Shelter from wind and stake early."
+  },
+  {
+    "cropId": "tomato",
+    "regionId": "canterbury",
+    "method": "transplant",
+    "startMonth": 11,
+    "endMonth": 12,
+    "riskNote": "Frost tender. Use protection if planting early."
+  },
+  {
+    "cropId": "basil",
+    "regionId": "all",
+    "method": "transplant",
+    "startMonth": 10,
+    "endMonth": 1,
+    "riskNote": "Frost tender. Best in warm, sheltered spots."
+  }
+]

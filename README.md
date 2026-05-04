@@ -2,12 +2,32 @@
 
 A zero-cost, offline-first Flutter app for New Zealand home vegetable gardeners.
 
+## Web preview
+
+Once GitHub Pages is enabled for this repo, the app should be available at:
+
+```text
+https://archil3s.github.io/nz-vege-garden/
+```
+
+To enable the preview:
+
+```text
+Repo → Settings → Pages → Source: GitHub Actions
+```
+
+The preview is built by:
+
+```text
+.github/workflows/flutter-web-preview.yml
+```
+
 ## Project status
 
 Current build phase:
 
 ```text
-MVP scaffold and local data layer are in progress.
+MVP app features are being built with offline bundled data and local device storage.
 ```
 
 Progress tracker:
@@ -27,6 +47,8 @@ lib/main.dart
 lib/app/
 lib/data/
 lib/features/
+web/
+.github/workflows/
 pubspec.yaml
 analysis_options.yaml
 ```
@@ -36,11 +58,14 @@ The app currently has:
 - Flutter project scaffold
 - Material 3 app shell
 - Bottom navigation
-- Local JSON crop, region, and planting-rule data
+- Local JSON crop, region, planting-rule, pest/problem, and task-rule data
 - Home screen showing what to plant now
-- Crop guide screen
-- Placeholder screens for beds, tasks, pests, and settings
-- Initial settings model
+- Crop guide and crop detail screens
+- Garden bed planner with local bed creation and storage
+- Weekly task recommendations generated from local rules
+- Offline pest/problem guide
+- Editable local settings
+- GitHub Actions web preview workflow
 
 ## Purpose
 
@@ -84,10 +109,10 @@ Planned stack:
 
 - Flutter
 - Dart
-- Drift / SQLite
+- Drift / SQLite later if needed
 - Bundled JSON seed data
 - Local notifications
-- Optional static updates through GitHub Pages
+- GitHub Pages web preview
 
 ## MVP
 

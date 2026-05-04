@@ -6,6 +6,8 @@ class GardenBedPlanting {
     required this.cropName,
     required this.status,
     required this.plantedDate,
+    required this.expectedHarvestStartDate,
+    required this.expectedHarvestEndDate,
     required this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -17,6 +19,8 @@ class GardenBedPlanting {
   final String cropName;
   final String status;
   final DateTime plantedDate;
+  final DateTime? expectedHarvestStartDate;
+  final DateTime? expectedHarvestEndDate;
   final String notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -28,6 +32,8 @@ class GardenBedPlanting {
     String? cropName,
     String? status,
     DateTime? plantedDate,
+    DateTime? expectedHarvestStartDate,
+    DateTime? expectedHarvestEndDate,
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -39,6 +45,9 @@ class GardenBedPlanting {
       cropName: cropName ?? this.cropName,
       status: status ?? this.status,
       plantedDate: plantedDate ?? this.plantedDate,
+      expectedHarvestStartDate:
+          expectedHarvestStartDate ?? this.expectedHarvestStartDate,
+      expectedHarvestEndDate: expectedHarvestEndDate ?? this.expectedHarvestEndDate,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -51,6 +60,8 @@ class GardenBedPlanting {
     required String cropName,
     String status = 'planned',
     DateTime? plantedDate,
+    DateTime? expectedHarvestStartDate,
+    DateTime? expectedHarvestEndDate,
     String notes = '',
     DateTime? now,
   }) {
@@ -63,6 +74,8 @@ class GardenBedPlanting {
       cropName: cropName,
       status: status,
       plantedDate: plantedDate ?? timestamp,
+      expectedHarvestStartDate: expectedHarvestStartDate,
+      expectedHarvestEndDate: expectedHarvestEndDate,
       notes: notes,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -77,6 +90,12 @@ class GardenBedPlanting {
       cropName: json['cropName'] as String,
       status: json['status'] as String,
       plantedDate: DateTime.parse(json['plantedDate'] as String),
+      expectedHarvestStartDate: json['expectedHarvestStartDate'] == null
+          ? null
+          : DateTime.parse(json['expectedHarvestStartDate'] as String),
+      expectedHarvestEndDate: json['expectedHarvestEndDate'] == null
+          ? null
+          : DateTime.parse(json['expectedHarvestEndDate'] as String),
       notes: json['notes'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -91,6 +110,8 @@ class GardenBedPlanting {
       'cropName': cropName,
       'status': status,
       'plantedDate': plantedDate.toIso8601String(),
+      'expectedHarvestStartDate': expectedHarvestStartDate?.toIso8601String(),
+      'expectedHarvestEndDate': expectedHarvestEndDate?.toIso8601String(),
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),

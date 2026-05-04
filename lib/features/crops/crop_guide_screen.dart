@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/garden_data_repository.dart';
 import '../../data/models/crop.dart';
+import 'crop_detail_screen.dart';
 
 class CropGuideScreen extends StatelessWidget {
   const CropGuideScreen({super.key});
@@ -39,9 +40,14 @@ class CropGuideScreen extends StatelessWidget {
                     '${crop.summary}\nSpacing: ${crop.spacingCm} cm • Harvest: ${crop.daysToHarvestMin}-${crop.daysToHarvestMax} days',
                   ),
                   isThreeLine: true,
-                  trailing: crop.containerFriendly
-                      ? const Icon(Icons.inventory_2_outlined)
-                      : null,
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CropDetailScreen(crop: crop),
+                      ),
+                    );
+                  },
                 ),
               );
             },

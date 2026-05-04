@@ -1,0 +1,11 @@
+{
+  "name": "NZ Vege Garden",
+  "short_name": "Vege Garden",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F8FBF7",
+  "theme_color": "#2F6B3F",
+  "description": "Offline-first New Zealand vegetable gardening planner for home growers.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false
+}

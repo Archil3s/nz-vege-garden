@@ -298,9 +298,7 @@ class _GardenBedCard extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.eco_outlined),
                   title: Text(planting.cropName),
-                  subtitle: Text(
-                    '${_formatValue(planting.status)} • ${_formatDate(planting.plantedDate)}',
-                  ),
+                  subtitle: Text(_plantingSubtitle(planting)),
                   trailing: IconButton(
                     tooltip: 'Remove crop',
                     onPressed: () => onDeletePlantingPressed(planting),
@@ -312,6 +310,22 @@ class _GardenBedCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _plantingSubtitle(GardenBedPlanting planting) {
+    final parts = <String>[
+      _formatValue(planting.status),
+      'Planted ${_formatDate(planting.plantedDate)}',
+    ];
+
+    if (planting.expectedHarvestStartDate != null &&
+        planting.expectedHarvestEndDate != null) {
+      parts.add(
+        'Harvest ${_formatDate(planting.expectedHarvestStartDate!)} to ${_formatDate(planting.expectedHarvestEndDate!)}',
+      );
+    }
+
+    return parts.join(' • ');
   }
 
   String _formatDate(DateTime date) {

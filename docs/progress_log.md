@@ -4,7 +4,9 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and a GitHub Pages web preview workflow.
+The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, navigable crop detail pages, an offline pest/problem guide, and generated weekly task recommendations.
+
+GitHub Pages preview work has been removed for now. The app will be tested locally on a PC with Flutter tooling.
 
 ## Completed
 
@@ -34,35 +36,21 @@ These define:
 - Broad NZ growing regions
 - Initial crop list
 
-### Web preview setup
+### Local run setup
 
-Added:
+Updated:
 
 ```text
-web/index.html
-web/manifest.json
-.github/workflows/flutter-web-preview.yml
+README.md
 ```
 
 Implemented:
 
-- Minimal Flutter web support files
-- GitHub Actions workflow for Flutter web preview
-- Automatic build on push to `main`
-- Manual workflow dispatch support
-- Flutter stable setup in CI
-- `flutter pub get`
-- `flutter analyze`
-- `flutter test`
-- `flutter build web --release --base-href /nz-vege-garden/`
-- GitHub Pages artifact upload
-- GitHub Pages deployment step
-
-Expected preview URL once GitHub Pages is enabled:
-
-```text
-https://archil3s.github.io/nz-vege-garden/
-```
+- PC run instructions
+- Browser run command with `flutter run -d chrome`
+- Android emulator/device run command with `flutter run`
+- Removed GitHub Pages preview instructions
+- Removed automatic GitHub Pages deployment workflow
 
 ### Seed data
 
@@ -345,11 +333,9 @@ Goal:
 
 ## Next planned work
 
-1. Enable GitHub Pages source as GitHub Actions in repo settings
-2. Check the first web preview workflow run
-3. Add local notification service
-4. Add notification setting toggle
-5. Add app tests once the first workflow is stable
+1. Add local notification service
+2. Add notification setting toggle
+3. Add app tests once the first workflow is stable
 
 ## GitHub issues created
 

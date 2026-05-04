@@ -12,7 +12,7 @@ ThemeData buildAppTheme() {
     appBarTheme: const AppBarTheme(
       centerTitle: false,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       clipBehavior: Clip.antiAlias,
       elevation: 0,
       shape: RoundedRectangleBorder(

@@ -64,6 +64,12 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
     }
 
     final selectedCrop = crops.firstWhere((crop) => crop.id == _selectedCropId);
+    final expectedHarvestStartDate = _plantedDate.add(
+      Duration(days: selectedCrop.daysToHarvestMin),
+    );
+    final expectedHarvestEndDate = _plantedDate.add(
+      Duration(days: selectedCrop.daysToHarvestMax),
+    );
 
     setState(() => _isSaving = true);
 
@@ -73,6 +79,8 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
       cropName: selectedCrop.commonName,
       status: _status,
       plantedDate: _plantedDate,
+      expectedHarvestStartDate: expectedHarvestStartDate,
+      expectedHarvestEndDate: expectedHarvestEndDate,
       notes: _notesController.text.trim(),
     );
 
@@ -108,6 +116,9 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
           }
 
           final crops = snapshot.data ?? const <Crop>[];
+          final selectedCrop = _selectedCropId == null
+              ? null
+              : crops.where((crop) => crop.id == _selectedCropId).firstOrNull;
 
           return Form(
             key: _formKey,
@@ -133,6 +144,19 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
                     setState(() => _selectedCropId = value);
                   },
                 ),
+                if (selectedCrop != null) ...[
+                  const SizedBox(height: 12),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.event_available_outlined),
+                      title: const Text('Estimated harvest window'),
+                      subtitle: Text(
+                        '${_formatDate(_plantedDate.add(Duration(days: selectedCrop.daysToHarvestMin)))} '
+                        'to ${_formatDate(_plantedDate.add(Duration(days: selectedCrop.daysToHarvestMax)))}',
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _status,
@@ -206,4 +230,8 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
         .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
   }
+}
+
+extension _FirstOrNullExtension<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }

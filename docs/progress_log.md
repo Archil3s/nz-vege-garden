@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, navigable crop detail pages, and an offline pest/problem guide.
+The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, navigable crop detail pages, an offline pest/problem guide, and generated weekly task recommendations.
 
 ## Completed
 
@@ -43,6 +43,7 @@ assets/data/nz_regions.json
 assets/data/crops.json
 assets/data/planting_rules.json
 assets/data/pests.json
+assets/data/task_rules.json
 ```
 
 Initial data includes:
@@ -51,6 +52,7 @@ Initial data includes:
 - Expanded vegetable/herb crop profiles
 - Basic planting rules for crop, month, method, and region
 - Pest, disease, and crop problem guidance
+- Weekly task generation rules
 
 ### Expanded crop database
 
@@ -114,6 +116,37 @@ Implemented:
 - Signs, actions, prevention notes, and seasonal notes
 - Category icons for pests, diseases, and crop problems
 
+### Weekly task generation
+
+Added:
+
+```text
+assets/data/task_rules.json
+lib/data/models/task_rule.dart
+lib/data/weekly_task_service.dart
+```
+
+Updated:
+
+```text
+pubspec.yaml
+lib/data/garden_data_repository.dart
+lib/features/tasks/weekly_tasks_screen.dart
+```
+
+Implemented:
+
+- Offline weekly task rule seed data
+- TaskRule model
+- Asset registration for task rules
+- Data repository loading for task rules
+- WeeklyTaskService for generated recommendations
+- Filtering by month, region, garden type, frost risk, and wind exposure
+- Priority-based task sorting
+- Data-driven Weekly Tasks screen
+- Task cards with task type icons, title, description, priority, and type
+- Empty state when no task rules match
+
 ### Flutter scaffold
 
 Added:
@@ -151,6 +184,7 @@ The data layer can:
 - Load NZ region seed data
 - Load planting rules
 - Load pest/problem seed data
+- Load task rule seed data
 - Filter crops by selected month and region
 
 ### Initial screens
@@ -171,7 +205,7 @@ Current screens:
 - Home: shows crops plantable now
 - Crops: lists crop guide entries and opens detail pages
 - Beds: working garden bed planner
-- Tasks: placeholder weekly tasks
+- Tasks: generated weekly task recommendations
 - Pests: offline pest/problem guide
 - Settings: editable local setup screen
 
@@ -270,21 +304,20 @@ Implemented:
 
 ## In progress
 
-### Task generation rules
+### Local notifications
 
 Goal:
 
-- Add bundled weekly task rules
-- Generate simple weekly jobs from month, region, and app settings
-- Show generated tasks on the Tasks screen
-- Keep task guidance offline and zero-cost
+- Initialise local notifications
+- Let users enable a weekly gardening reminder
+- Keep reminders local on-device
+- Avoid server push notifications and backend cost
 
 ## Next planned work
 
-1. Add task generation rules
-2. Connect task rules to the Tasks screen
-3. Add local notifications
-4. Add app tests once the first workflow is stable
+1. Add local notification service
+2. Add notification setting toggle
+3. Add app tests once the first workflow is stable
 
 ## GitHub issues created
 

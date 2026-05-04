@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, and a working local garden bed planner UI.
+The repo now contains the planning documents, bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a working local garden bed planner UI, and navigable crop detail pages.
 
 ## Completed
 
@@ -104,7 +104,7 @@ lib/features/settings/settings_screen.dart
 Current screens:
 
 - Home: shows crops plantable now
-- Crops: lists crop guide entries
+- Crops: lists crop guide entries and opens detail pages
 - Beds: working garden bed planner
 - Tasks: placeholder weekly tasks
 - Pests: placeholder pest/problem guide
@@ -178,25 +178,49 @@ Implemented:
 - Bed cards showing type, exposure, dimensions, area, and notes
 - Delete support for saved beds
 
+### Crop detail pages
+
+Added:
+
+```text
+lib/features/crops/crop_detail_screen.dart
+```
+
+Updated:
+
+```text
+lib/features/crops/crop_guide_screen.dart
+```
+
+Implemented:
+
+- Tappable crop guide cards
+- Crop detail navigation
+- Crop name and summary
+- Category, sun, water, frost, container, and beginner chips
+- Plant spacing section
+- Harvest timing section
+- Generated growing notes from existing seed data
+- MVP data note for future richer crop guidance
+
 ## In progress
 
-### Crop detail screen
+### Expand seed crop data
 
 Goal:
 
-- Open crop details from the Crop Guide screen
-- Show full crop information
-- Surface frost/container/beginner flags clearly
-- Prepare for adding sowing, transplanting, and harvest guidance per crop
+- Add more home vegetable crops
+- Add more herb crops
+- Improve existing crop metadata
+- Prepare for richer crop-specific advice
 
 ## Next planned work
 
-1. Add crop detail screen
-2. Expand seed crop data
-3. Add pest/problem seed data
-4. Add task generation rules
-5. Add local notifications
-6. Add app tests once the first workflow is stable
+1. Expand seed crop data
+2. Add pest/problem seed data
+3. Add task generation rules
+4. Add local notifications
+5. Add app tests once the first workflow is stable
 
 ## GitHub issues created
 

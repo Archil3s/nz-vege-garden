@@ -2,24 +2,27 @@
 
 A zero-cost, offline-first Flutter app for New Zealand home vegetable gardeners.
 
-## Web preview
+## Local run instructions
 
-Once GitHub Pages is enabled for this repo, the app should be available at:
+When testing on a PC with Flutter installed:
 
-```text
-https://archil3s.github.io/nz-vege-garden/
+```bash
+git clone https://github.com/Archil3s/nz-vege-garden.git
+cd nz-vege-garden
+flutter pub get
+flutter run
 ```
 
-To enable the preview:
+For a browser test on PC:
 
-```text
-Repo → Settings → Pages → Source: GitHub Actions
+```bash
+flutter run -d chrome
 ```
 
-The preview is built by:
+For an Android emulator or connected Android device:
 
-```text
-.github/workflows/flutter-web-preview.yml
+```bash
+flutter run
 ```
 
 ## Project status
@@ -48,7 +51,7 @@ lib/app/
 lib/data/
 lib/features/
 web/
-.github/workflows/
+test/
 pubspec.yaml
 analysis_options.yaml
 ```
@@ -65,7 +68,7 @@ The app currently has:
 - Weekly task recommendations generated from local rules
 - Offline pest/problem guide
 - Editable local settings
-- GitHub Actions web preview workflow
+- Basic smoke test
 
 ## Purpose
 
@@ -102,6 +105,7 @@ Out of scope for the first version:
 - Paid APIs
 - Server-side AI
 - Paid hosting
+- Required web deployment
 
 ## Technical direction
 
@@ -112,7 +116,7 @@ Planned stack:
 - Drift / SQLite later if needed
 - Bundled JSON seed data
 - Local notifications
-- GitHub Pages web preview
+- Local device storage
 
 ## MVP
 

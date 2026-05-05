@@ -3,7 +3,7 @@
     "id": "slugs_snails",
     "name": "Slugs and snails",
     "category": "pest",
-    "summary": "Common pests that damage seedlings, leafy greens, brassicas, strawberries, and young transplants.",
+    "summary": "Common pests that damage seedlings, leafy greens, brassicas, and young transplants.",
     "signs": [
       "Irregular holes in leaves",
       "Seedlings cut down overnight",
@@ -16,7 +16,7 @@
       "silverbeet",
       "broccoli",
       "cabbage",
-      "strawberry"
+      "kale"
     ],
     "actions": [
       "Check plants at night or early morning",

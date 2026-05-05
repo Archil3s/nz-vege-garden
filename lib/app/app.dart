@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../features/calendar/crop_calendar_screen.dart';
 import '../features/crops/crop_guide_screen.dart';
-import '../features/home/home_screen.dart';
+import '../features/home/friendly_home_screen.dart';
 import '../features/insights/insights_screen.dart';
 import '../features/pests/pest_guide_screen.dart';
 import '../features/pruning/pruning_guide_screen.dart';
@@ -36,7 +36,7 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
 
   List<Widget> get _screens => [
-        const HomeScreen(),
+        const FriendlyHomeScreen(),
         const InsightsScreen(),
         _MoreScreen(onOpenSection: _openSection),
       ];

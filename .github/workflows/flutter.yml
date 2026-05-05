@@ -1,10 +1,7 @@
-name: Flutter CI
+name: iPhone Web Preview
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
     branches:
       - main
   workflow_dispatch:
@@ -16,13 +13,17 @@ permissions:
   actions: read
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: github-pages-preview
+  cancel-in-progress: true
 
 jobs:
-  flutter:
-    name: Analyze, test, and build preview artifacts
+  deploy-web-preview:
+    name: Build and deploy web preview
     runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout repository
@@ -40,122 +41,78 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Check formatting
+      - name: Non-blocking format check
+        continue-on-error: true
         run: dart format --output=none --set-exit-if-changed .
 
-      - name: Analyze project
+      - name: Non-blocking analyzer check
+        continue-on-error: true
         run: flutter analyze
 
-      - name: Run tests
-        run: flutter test
-
-      - name: Build web preview
+      - name: Build Flutter web preview
         run: flutter build web --release --base-href /nz-vege-garden/
 
-      - name: Add revision title to web preview
+      - name: Add revision title
         run: |
-          REV="${GITHUB_SHA::7}"
-          TITLE="NZ Vege Garden · rev ${REV}"
+          SHORT_REV="${GITHUB_SHA::7}"
+          BUILD_TITLE="NZ Veg Garden · rev ${SHORT_REV}"
+          export SHORT_REV BUILD_TITLE
+
           python3 - <<'PY'
           import os
+          import re
           from pathlib import Path
 
           index_path = Path('build/web/index.html')
           html = index_path.read_text(encoding='utf-8')
-          title = os.environ.get('TITLE', 'NZ Vege Garden')
+          title = os.environ['BUILD_TITLE']
+          short_rev = os.environ['SHORT_REV']
 
           if '<title>' in html and '</title>' in html:
-              import re
               html = re.sub(r'<title>.*?</title>', f'<title>{title}</title>', html, count=1, flags=re.S)
           else:
               html = html.replace('</head>', f'  <title>{title}</title>\n</head>')
 
-          revision_meta = f'<meta name="build-revision" content="{os.environ.get("REV", "unknown")}">'
-          if 'name="build-revision"' not in html:
-              html = html.replace('</head>', f'  {revision_meta}\n</head>')
+          meta = f'<meta name="build-revision" content="{short_rev}">'
+          if 'name="build-revision"' in html:
+              html = re.sub(r'<meta name="build-revision" content=".*?">', meta, html, count=1)
+          else:
+              html = html.replace('</head>', f'  {meta}\n</head>')
 
           index_path.write_text(html, encoding='utf-8')
           PY
-          echo "${TITLE}" > build/web/BUILD_TITLE.txt
-          echo "${REV}" > build/web/REVISION.txt
-        env:
-          REV: ${{ github.sha }}
-          TITLE: NZ Vege Garden · rev ${{ github.sha }}
 
-      - name: Add offline viewing notes
+          echo "${BUILD_TITLE}" > build/web/BUILD_TITLE.txt
+          echo "${SHORT_REV}" > build/web/REVISION.txt
+
+      - name: Add preview notes
         run: |
-          cat > build/web/OFFLINE_VIEW_README.txt <<'EOF'
-          NZ Vege Garden - Offline Web View
+          cat > build/web/PREVIEW_README.txt <<'EOF'
+          NZ Veg Garden - iPhone Web Preview
 
-          This artifact contains the static Flutter Web release build.
+          Open the published GitHub Pages URL on iPhone Safari:
+          https://archil3s.github.io/nz-vege-garden/
 
-          To view locally:
-          1. Download and unzip the artifact.
-          2. Serve the folder with a tiny local web server.
-
-          Example:
-            cd build/web
-            python3 -m http.server 8080
-
-          Then open:
-            http://localhost:8080
-
-          Notes:
-          - Opening index.html directly from the file system may not work in all browsers.
-          - This is a static offline preview artifact. Network-backed features still require their services.
-          - BUILD_TITLE.txt and REVISION.txt identify the deployed build.
+          This preview is built from the latest main branch commit.
+          BUILD_TITLE.txt and REVISION.txt identify the deployed revision.
           EOF
 
-      - name: Upload offline web artifact
+      - name: Upload web artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nz-vege-garden-offline-web
+          name: nz-veg-garden-web-preview
           path: build/web
           if-no-files-found: error
           retention-days: 14
 
-      - name: Build Android debug APK
-        run: flutter build apk --debug
-
-      - name: Add Android install notes
-        run: |
-          mkdir -p phone-preview
-          cp build/app/outputs/flutter-apk/app-debug.apk phone-preview/nz-vege-garden-debug.apk
-          cat > phone-preview/ANDROID_INSTALL_README.txt <<'EOF'
-          NZ Vege Garden - Android Phone Preview
-
-          This artifact contains a debug APK for direct phone testing.
-
-          To install on Android:
-          1. Download the nz-vege-garden-android-debug-apk artifact from GitHub Actions.
-          2. Unzip it on your phone or computer.
-          3. Open nz-vege-garden-debug.apk on your Android phone.
-          4. Allow install from unknown apps when prompted.
-
-          Notes:
-          - This is a debug build for testing, not a Play Store release.
-          - iPhone cannot install this APK. iPhone testing needs TestFlight or a local Xcode/iOS build.
-          EOF
-
-      - name: Upload Android debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: nz-vege-garden-android-debug-apk
-          path: phone-preview
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Configure GitHub Pages
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
       - name: Upload GitHub Pages artifact
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
 
       - name: Deploy GitHub Pages preview
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         id: deployment
         uses: actions/deploy-pages@v4

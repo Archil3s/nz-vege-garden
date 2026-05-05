@@ -29,6 +29,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set preview revision
+        run: |
+          SHORT_REV="${GITHUB_SHA::7}"
+          echo "SHORT_REV=${SHORT_REV}" >> "$GITHUB_ENV"
+          echo "BUILD_TITLE=NZ Veg Garden · rev ${SHORT_REV}" >> "$GITHUB_ENV"
+          echo "PREVIEW_URL=https://archil3s.github.io/nz-vege-garden/" >> "$GITHUB_ENV"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -50,14 +57,125 @@ jobs:
         run: flutter analyze
 
       - name: Build Flutter web preview
+        id: flutter_build
+        continue-on-error: true
         run: flutter build web --release --base-href /nz-vege-garden/
 
-      - name: Add revision title
+      - name: Create fallback progress preview if Flutter build fails
+        if: steps.flutter_build.outcome != 'success'
         run: |
-          SHORT_REV="${GITHUB_SHA::7}"
-          BUILD_TITLE="NZ Veg Garden · rev ${SHORT_REV}"
-          export SHORT_REV BUILD_TITLE
+          rm -rf build/web
+          mkdir -p build/web
+          cat > build/web/index.html <<EOF
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <meta name="build-revision" content="${SHORT_REV}">
+              <title>${BUILD_TITLE} · build needs fix</title>
+              <style>
+                :root {
+                  color-scheme: light;
+                  --canvas: #f8f3e8;
+                  --card: #fffcf5;
+                  --ink: #172d22;
+                  --muted: #66736a;
+                  --leaf: #2f724b;
+                  --clay: #c4793d;
+                  --border: #e7dfce;
+                }
+                * { box-sizing: border-box; }
+                body {
+                  margin: 0;
+                  min-height: 100vh;
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                  background:
+                    radial-gradient(circle at 90% 0%, #e7f0db 0, transparent 32%),
+                    radial-gradient(circle at 0% 35%, rgba(244, 200, 106, .28) 0, transparent 30%),
+                    var(--canvas);
+                  color: var(--ink);
+                  display: grid;
+                  place-items: center;
+                  padding: 20px;
+                }
+                .card {
+                  width: min(520px, 100%);
+                  border: 1px solid var(--border);
+                  border-radius: 32px;
+                  background: var(--card);
+                  box-shadow: 0 18px 42px rgba(23, 45, 34, .16);
+                  overflow: hidden;
+                }
+                .hero {
+                  padding: 28px;
+                  color: white;
+                  background: linear-gradient(135deg, #17452f, #2f724b, #8ba766);
+                }
+                .pill {
+                  display: inline-flex;
+                  padding: 8px 12px;
+                  border-radius: 999px;
+                  background: rgba(255,255,255,.16);
+                  border: 1px solid rgba(255,255,255,.22);
+                  font-size: 13px;
+                  font-weight: 800;
+                }
+                h1 {
+                  margin: 18px 0 8px;
+                  font-size: 36px;
+                  line-height: .98;
+                  letter-spacing: -1px;
+                }
+                .body { padding: 24px 28px 28px; }
+                .status {
+                  display: inline-flex;
+                  padding: 8px 12px;
+                  border-radius: 999px;
+                  color: var(--clay);
+                  background: rgba(196, 121, 61, .12);
+                  font-weight: 900;
+                  font-size: 13px;
+                }
+                dl { display: grid; gap: 12px; margin: 22px 0; }
+                .row {
+                  display: flex;
+                  justify-content: space-between;
+                  gap: 16px;
+                  padding-bottom: 12px;
+                  border-bottom: 1px solid var(--border);
+                }
+                dt { color: var(--muted); font-weight: 700; }
+                dd { margin: 0; font-weight: 900; text-align: right; }
+                p { color: var(--muted); line-height: 1.5; }
+                a { color: var(--leaf); font-weight: 900; }
+              </style>
+            </head>
+            <body>
+              <main class="card">
+                <section class="hero">
+                  <span class="pill">NZ Veg Garden · dev preview</span>
+                  <h1>Preview updated</h1>
+                  <div>Flutter build needs a fix, but the latest revision is published.</div>
+                </section>
+                <section class="body">
+                  <span class="status">Build needs fix</span>
+                  <dl>
+                    <div class="row"><dt>Revision</dt><dd>${SHORT_REV}</dd></div>
+                    <div class="row"><dt>Branch</dt><dd>main</dd></div>
+                    <div class="row"><dt>Workflow</dt><dd>iPhone Web Preview</dd></div>
+                  </dl>
+                  <p>This fallback page is intentional. It confirms each push is reaching GitHub Pages even when the Flutter app itself fails to compile.</p>
+                  <p><a href="https://github.com/Archil3s/nz-vege-garden/actions/workflows/flutter.yml">View workflow logs</a></p>
+                </section>
+              </main>
+            </body>
+          </html>
+          EOF
 
+      - name: Add revision title to successful Flutter build
+        if: steps.flutter_build.outcome == 'success'
+        run: |
           python3 - <<'PY'
           import os
           import re
@@ -82,20 +200,33 @@ jobs:
           index_path.write_text(html, encoding='utf-8')
           PY
 
+      - name: Add preview metadata
+        run: |
           echo "${BUILD_TITLE}" > build/web/BUILD_TITLE.txt
           echo "${SHORT_REV}" > build/web/REVISION.txt
-
-      - name: Add preview notes
-        run: |
-          cat > build/web/PREVIEW_README.txt <<'EOF'
+          cat > build/web/PREVIEW_README.txt <<EOF
           NZ Veg Garden - iPhone Web Preview
 
-          Open the published GitHub Pages URL on iPhone Safari:
-          https://archil3s.github.io/nz-vege-garden/
+          URL:
+          ${PREVIEW_URL}
 
-          This preview is built from the latest main branch commit.
-          BUILD_TITLE.txt and REVISION.txt identify the deployed revision.
+          Revision:
+          ${SHORT_REV}
+
+          Flutter build outcome:
+          ${{ steps.flutter_build.outcome }}
+
+          This preview publishes on every push to main. If Flutter fails to build,
+          a fallback progress page is published so dev progress is still visible.
           EOF
+
+      - name: Write workflow summary
+        run: |
+          echo "## NZ Veg Garden Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: ${PREVIEW_URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Revision: ${SHORT_REV}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Flutter build: ${{ steps.flutter_build.outcome }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload web artifact
         uses: actions/upload-artifact@v4

@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
+import '../../core/plant_icons/generated_plant_icon.dart';
 import '../../data/garden_bed_planting_repository.dart';
 import '../../data/garden_bed_repository.dart';
 import '../../data/models/garden_bed.dart';
@@ -76,11 +79,11 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
     }
   }
 
-  void _openVisualLayoutScreen({
+  Future<void> _openVisualLayoutScreen({
     required GardenBed bed,
     required List<GardenBedPlanting> plantings,
-  }) {
-    Navigator.of(context).push(
+  }) async {
+    await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => VisualBedLayoutScreen(
           bed: bed,
@@ -88,6 +91,8 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
         ),
       ),
     );
+
+    _reloadGardenBeds();
   }
 
   Future<void> _openAddPlantingScreen(GardenBed bed) async {
@@ -421,163 +426,168 @@ class _GardenBedCard extends StatelessWidget {
     final area = bed.areaSquareMeters;
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.yard_outlined),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        bed.name,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(_formatValue(bed.type)),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Visual layout',
-                  onPressed: onLayoutPressed,
-                  icon: const Icon(Icons.dashboard_customize_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Edit bed',
-                  onPressed: onEditPressed,
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Delete bed',
-                  onPressed: onDeletePressed,
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _InfoChip(
-                  icon: Icons.wb_sunny_outlined,
-                  label: _formatValue(bed.sunExposure),
-                ),
-                _InfoChip(
-                  icon: Icons.air_outlined,
-                  label: _formatValue(bed.windExposure),
-                ),
-                _InfoChip(
-                  icon: Icons.palette_outlined,
-                  label: _formatValue(bed.layoutStyle),
-                ),
-                if (bed.lengthCm != null && bed.widthCm != null)
-                  _InfoChip(
-                    icon: Icons.straighten_outlined,
-                    label: '${bed.lengthCm} × ${bed.widthCm} cm',
-                  ),
-                if (area != null)
-                  _InfoChip(
-                    icon: Icons.square_foot_outlined,
-                    label: '${area.toStringAsFixed(2)} m²',
-                  ),
-              ],
-            ),
-            if (bed.notes.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(bed.notes),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Crops in this bed',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: onLayoutPressed,
-                  icon: const Icon(Icons.dashboard_customize_outlined),
-                  label: const Text('Layout'),
-                ),
-                TextButton.icon(
-                  onPressed: onAddCropPressed,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add crop'),
-                ),
-              ],
-            ),
-            if (plantings.isEmpty)
-              const Text('No crops added yet.')
-            else
-              ...plantings.map(
-                (planting) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(_statusIcon(planting.status)),
-                  title: Text(planting.cropName),
-                  subtitle: Text(_plantingSubtitle(planting)),
-                  onTap: () => onEditPlantingPressed(planting),
-                  trailing: PopupMenuButton<String>(
-                    tooltip: 'Planting actions',
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        onEditPlantingPressed(planting);
-                        return;
-                      }
-
-                      if (value == 'remove') {
-                        onDeletePlantingPressed(planting);
-                        return;
-                      }
-
-                      onStatusChanged(planting, value);
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: ListTile(
-                          leading: Icon(Icons.edit_outlined),
-                          title: Text('Edit details'),
-                          contentPadding: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onLayoutPressed,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.yard_outlined),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          bed.name,
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
-                      ),
-                      const PopupMenuDivider(),
-                      ..._statusOptions.map(
-                        (status) => PopupMenuItem(
-                          value: status,
-                          enabled: status != planting.status,
+                        const SizedBox(height: 4),
+                        Text(_formatValue(bed.type)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Edit bed',
+                    onPressed: onEditPressed,
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete bed',
+                    onPressed: onDeletePressed,
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _InfoChip(
+                    icon: Icons.wb_sunny_outlined,
+                    label: _formatValue(bed.sunExposure),
+                  ),
+                  _InfoChip(
+                    icon: Icons.air_outlined,
+                    label: _formatValue(bed.windExposure),
+                  ),
+                  _InfoChip(
+                    icon: Icons.palette_outlined,
+                    label: _formatValue(bed.layoutStyle),
+                  ),
+                  if (bed.lengthCm != null && bed.widthCm != null)
+                    _InfoChip(
+                      icon: Icons.straighten_outlined,
+                      label: '${bed.lengthCm} × ${bed.widthCm} cm',
+                    ),
+                  if (area != null)
+                    _InfoChip(
+                      icon: Icons.square_foot_outlined,
+                      label: '${area.toStringAsFixed(2)} m²',
+                    ),
+                ],
+              ),
+              if (bed.notes.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(bed.notes),
+              ],
+              const SizedBox(height: 16),
+              _EmbeddedBedPlannerPreview(
+                bed: bed,
+                plantings: plantings,
+                onTap: onLayoutPressed,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Crops in this bed',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: onLayoutPressed,
+                    icon: const Icon(Icons.dashboard_customize_outlined),
+                    label: const Text('Open planner'),
+                  ),
+                  TextButton.icon(
+                    onPressed: onAddCropPressed,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add crop'),
+                  ),
+                ],
+              ),
+              if (plantings.isEmpty)
+                const Text('No crops added yet.')
+              else
+                ...plantings.map(
+                  (planting) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(_statusIcon(planting.status)),
+                    title: Text(planting.cropName),
+                    subtitle: Text(_plantingSubtitle(planting)),
+                    onTap: () => onEditPlantingPressed(planting),
+                    trailing: PopupMenuButton<String>(
+                      tooltip: 'Planting actions',
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          onEditPlantingPressed(planting);
+                          return;
+                        }
+
+                        if (value == 'remove') {
+                          onDeletePlantingPressed(planting);
+                          return;
+                        }
+
+                        onStatusChanged(planting, value);
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
                           child: ListTile(
-                            leading: Icon(_statusIcon(status)),
-                            title: Text(_formatValue(status)),
-                            trailing: status == planting.status
-                                ? const Icon(Icons.check)
-                                : null,
+                            leading: Icon(Icons.edit_outlined),
+                            title: Text('Edit details'),
                             contentPadding: EdgeInsets.zero,
                           ),
                         ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: 'remove',
-                        child: ListTile(
-                          leading: Icon(Icons.delete_outline),
-                          title: Text('Remove crop'),
-                          contentPadding: EdgeInsets.zero,
+                        const PopupMenuDivider(),
+                        ..._statusOptions.map(
+                          (status) => PopupMenuItem(
+                            value: status,
+                            enabled: status != planting.status,
+                            child: ListTile(
+                              leading: Icon(_statusIcon(status)),
+                              title: Text(_formatValue(status)),
+                              trailing: status == planting.status
+                                  ? const Icon(Icons.check)
+                                  : null,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(
+                          value: 'remove',
+                          child: ListTile(
+                            leading: Icon(Icons.delete_outline),
+                            title: Text('Remove crop'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -623,6 +633,379 @@ class _GardenBedCard extends StatelessWidget {
         .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
   }
+}
+
+class _EmbeddedBedPlannerPreview extends StatelessWidget {
+  const _EmbeddedBedPlannerPreview({
+    required this.bed,
+    required this.plantings,
+    required this.onTap,
+  });
+
+  final GardenBed bed;
+  final List<GardenBedPlanting> plantings;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final activePlantings = plantings
+        .where((planting) => planting.status != 'finished' && planting.status != 'failed')
+        .toList(growable: false);
+    final markers = _buildMarkers(activePlantings);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Bed planner preview',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: onTap,
+              icon: const Icon(Icons.open_in_full_outlined),
+              label: const Text('Design'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        AspectRatio(
+          aspectRatio: _aspectRatioForBed(bed),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: scheme.shadow.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _MiniBedPainter(
+                        colorScheme: scheme,
+                        style: bed.layoutStyle,
+                      ),
+                    ),
+                  ),
+                  ...markers.map(
+                    (marker) => Positioned(
+                      left: marker.xFraction * 1000,
+                      top: marker.yFraction * 1000,
+                      child: const SizedBox.shrink(),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Stack(
+                          children: [
+                            ...markers.map(
+                              (marker) => Positioned(
+                                left: marker.xFraction * constraints.maxWidth - marker.size / 2,
+                                top: marker.yFraction * constraints.maxHeight - marker.size / 2,
+                                width: marker.size,
+                                height: marker.size,
+                                child: GeneratedPlantIcon(
+                                  cropName: marker.cropName,
+                                  size: marker.size,
+                                ),
+                              ),
+                            ),
+                            if (markers.isEmpty)
+                              Center(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: scheme.surface.withOpacity(0.76),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    child: Text('Tap to design this bed'),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _InfoChip(
+              icon: Icons.spa_outlined,
+              label: '${activePlantings.fold<int>(0, (sum, planting) => sum + planting.plantCount)} plants',
+            ),
+            _InfoChip(
+              icon: Icons.layers_outlined,
+              label: '${activePlantings.length} crops',
+            ),
+            _InfoChip(
+              icon: Icons.touch_app_outlined,
+              label: 'Tap to edit layout',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  List<_MiniPlantMarker> _buildMarkers(List<GardenBedPlanting> plantings) {
+    if (plantings.isEmpty) {
+      return const [];
+    }
+
+    final markers = <_MiniPlantMarker>[];
+    final style = bed.layoutStyle;
+    final totalPlants = plantings.fold<int>(
+      0,
+      (sum, planting) => sum + planting.plantCount.clamp(1, 80),
+    );
+    final size = totalPlants > 60
+        ? 16.0
+        : totalPlants > 35
+            ? 18.0
+            : 22.0;
+
+    for (var cropIndex = 0; cropIndex < plantings.length; cropIndex++) {
+      final planting = plantings[cropIndex];
+      final count = planting.plantCount.clamp(1, 80);
+
+      if (style == 'companion') {
+        markers.addAll(_clusterMarkers(planting, cropIndex, plantings.length, count, size));
+      } else if (style == 'showcase') {
+        markers.addAll(_showcaseMarkers(planting, cropIndex, plantings.length, count, size));
+      } else {
+        markers.addAll(_rowMarkers(planting, cropIndex, plantings.length, count, size));
+      }
+    }
+
+    return markers.take(120).toList(growable: false);
+  }
+
+  List<_MiniPlantMarker> _rowMarkers(
+    GardenBedPlanting planting,
+    int cropIndex,
+    int cropCount,
+    int count,
+    double size,
+  ) {
+    final markers = <_MiniPlantMarker>[];
+    final columns = cropCount == 1 ? 1 : math.min(2, cropCount);
+    final rows = (cropCount / columns).ceil();
+    final zoneColumn = cropIndex % columns;
+    final zoneRow = cropIndex ~/ columns;
+    final zoneLeft = zoneColumn / columns;
+    final zoneTop = zoneRow / rows;
+    final zoneWidth = 1 / columns;
+    final zoneHeight = 1 / rows;
+    final gridColumns = math.max(1, math.sqrt(count * zoneWidth / zoneHeight).ceil());
+    final gridRows = (count / gridColumns).ceil();
+
+    for (var i = 0; i < count; i++) {
+      final markerColumn = i % gridColumns;
+      final markerRow = i ~/ gridColumns;
+      markers.add(_MiniPlantMarker(
+        cropName: planting.cropName,
+        xFraction: (zoneLeft + ((markerColumn + 1) / (gridColumns + 1)) * zoneWidth).clamp(0.06, 0.94),
+        yFraction: (zoneTop + ((markerRow + 1) / (gridRows + 1)) * zoneHeight).clamp(0.08, 0.92),
+        size: size,
+      ));
+    }
+
+    return markers;
+  }
+
+  List<_MiniPlantMarker> _clusterMarkers(
+    GardenBedPlanting planting,
+    int cropIndex,
+    int cropCount,
+    int count,
+    double size,
+  ) {
+    final center = _clusterCenter(cropIndex, cropCount);
+    final markers = <_MiniPlantMarker>[];
+
+    for (var i = 0; i < count; i++) {
+      final ring = 1 + (i / 8).floor();
+      final angle = (i * 2.399963229728653) + cropIndex;
+      final scale = math.min(1.0, 0.22 + ring * 0.13);
+      markers.add(_MiniPlantMarker(
+        cropName: planting.cropName,
+        xFraction: (center.dx + math.cos(angle) * 0.16 * scale).clamp(0.07, 0.93),
+        yFraction: (center.dy + math.sin(angle) * 0.18 * scale).clamp(0.09, 0.91),
+        size: size,
+      ));
+    }
+
+    return markers;
+  }
+
+  List<_MiniPlantMarker> _showcaseMarkers(
+    GardenBedPlanting planting,
+    int cropIndex,
+    int cropCount,
+    int count,
+    double size,
+  ) {
+    final center = _clusterCenter(cropIndex, cropCount);
+    final columns = math.max(1, math.sqrt(count).ceil());
+    final rows = (count / columns).ceil();
+    final markers = <_MiniPlantMarker>[];
+
+    for (var i = 0; i < count; i++) {
+      final row = i ~/ columns;
+      final column = i % columns;
+      final curve = math.sin((column / math.max(1, columns - 1)) * math.pi) * 0.035;
+      markers.add(_MiniPlantMarker(
+        cropName: planting.cropName,
+        xFraction: (center.dx + (column - (columns - 1) / 2) * 0.045).clamp(0.07, 0.93),
+        yFraction: (center.dy + (row - (rows - 1) / 2) * 0.045 + curve).clamp(0.09, 0.91),
+        size: size,
+      ));
+    }
+
+    return markers;
+  }
+
+  Offset _clusterCenter(int index, int count) {
+    if (count == 1) return const Offset(0.50, 0.52);
+
+    final positions = [
+      const Offset(0.25, 0.27),
+      const Offset(0.75, 0.73),
+      const Offset(0.74, 0.28),
+      const Offset(0.26, 0.72),
+      const Offset(0.50, 0.52),
+    ];
+
+    return positions[index % positions.length];
+  }
+
+  double _aspectRatioForBed(GardenBed bed) {
+    final length = bed.lengthCm;
+    final width = bed.widthCm;
+    if (length == null || width == null || length <= 0 || width <= 0) return 1.6;
+    return (length / width).clamp(0.85, 2.2).toDouble();
+  }
+}
+
+class _MiniBedPainter extends CustomPainter {
+  const _MiniBedPainter({required this.colorScheme, required this.style});
+
+  final ColorScheme colorScheme;
+  final String style;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final bed = RRect.fromRectAndRadius(rect, const Radius.circular(18));
+    final soil = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colorScheme.surfaceContainerHighest,
+          colorScheme.secondaryContainer.withOpacity(0.58),
+          colorScheme.surface,
+        ],
+      ).createShader(rect);
+
+    canvas.drawRRect(bed, soil);
+
+    final texture = Paint()
+      ..color = colorScheme.outlineVariant.withOpacity(0.18)
+      ..strokeWidth = 1;
+    for (var y = 18.0; y < size.height; y += 18.0) {
+      canvas.drawLine(
+        Offset(12, y + math.sin(y * 0.16) * 1.4),
+        Offset(size.width - 12, y + math.cos(y * 0.13) * 1.4),
+        texture,
+      );
+    }
+
+    if (style == 'companion') {
+      final path = Path()
+        ..moveTo(size.width * 0.50, 10)
+        ..cubicTo(
+          size.width * 0.38,
+          size.height * 0.28,
+          size.width * 0.62,
+          size.height * 0.62,
+          size.width * 0.50,
+          size.height - 10,
+        );
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 14
+          ..strokeCap = StrokeCap.round
+          ..color = colorScheme.surface.withOpacity(0.34),
+      );
+    } else if (style == 'showcase') {
+      final rings = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..color = colorScheme.tertiary.withOpacity(0.24);
+      final center = Offset(size.width / 2, size.height / 2);
+      for (var radius = 22.0; radius < math.min(size.width, size.height) / 2; radius += 28) {
+        canvas.drawCircle(center, radius, rings);
+      }
+    } else {
+      final guides = Paint()
+        ..color = colorScheme.primary.withOpacity(0.12)
+        ..strokeWidth = 1;
+      for (var x = size.width / 4; x < size.width; x += size.width / 4) {
+        canvas.drawLine(Offset(x, 14), Offset(x, size.height - 14), guides);
+      }
+    }
+
+    canvas.drawRRect(
+      bed.deflate(1),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..color = colorScheme.outline.withOpacity(0.54),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniBedPainter oldDelegate) {
+    return oldDelegate.colorScheme != colorScheme || oldDelegate.style != style;
+  }
+}
+
+class _MiniPlantMarker {
+  const _MiniPlantMarker({
+    required this.cropName,
+    required this.xFraction,
+    required this.yFraction,
+    required this.size,
+  });
+
+  final String cropName;
+  final double xFraction;
+  final double yFraction;
+  final double size;
 }
 
 class _InfoChip extends StatelessWidget {

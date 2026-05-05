@@ -5,6 +5,7 @@ class GardenBedPlanting {
     required this.cropId,
     required this.cropName,
     required this.status,
+    required this.plantCount,
     required this.plantedDate,
     required this.expectedHarvestStartDate,
     required this.expectedHarvestEndDate,
@@ -18,6 +19,7 @@ class GardenBedPlanting {
   final String cropId;
   final String cropName;
   final String status;
+  final int plantCount;
   final DateTime plantedDate;
   final DateTime? expectedHarvestStartDate;
   final DateTime? expectedHarvestEndDate;
@@ -31,6 +33,7 @@ class GardenBedPlanting {
     String? cropId,
     String? cropName,
     String? status,
+    int? plantCount,
     DateTime? plantedDate,
     DateTime? expectedHarvestStartDate,
     DateTime? expectedHarvestEndDate,
@@ -44,6 +47,7 @@ class GardenBedPlanting {
       cropId: cropId ?? this.cropId,
       cropName: cropName ?? this.cropName,
       status: status ?? this.status,
+      plantCount: plantCount ?? this.plantCount,
       plantedDate: plantedDate ?? this.plantedDate,
       expectedHarvestStartDate:
           expectedHarvestStartDate ?? this.expectedHarvestStartDate,
@@ -59,6 +63,7 @@ class GardenBedPlanting {
     required String cropId,
     required String cropName,
     String status = 'planned',
+    int plantCount = 1,
     DateTime? plantedDate,
     DateTime? expectedHarvestStartDate,
     DateTime? expectedHarvestEndDate,
@@ -73,6 +78,7 @@ class GardenBedPlanting {
       cropId: cropId,
       cropName: cropName,
       status: status,
+      plantCount: plantCount.clamp(1, 999),
       plantedDate: plantedDate ?? timestamp,
       expectedHarvestStartDate: expectedHarvestStartDate,
       expectedHarvestEndDate: expectedHarvestEndDate,
@@ -89,6 +95,7 @@ class GardenBedPlanting {
       cropId: json['cropId'] as String,
       cropName: json['cropName'] as String,
       status: json['status'] as String,
+      plantCount: (json['plantCount'] as int?) ?? 1,
       plantedDate: DateTime.parse(json['plantedDate'] as String),
       expectedHarvestStartDate: json['expectedHarvestStartDate'] == null
           ? null
@@ -109,6 +116,7 @@ class GardenBedPlanting {
       'cropId': cropId,
       'cropName': cropName,
       'status': status,
+      'plantCount': plantCount,
       'plantedDate': plantedDate.toIso8601String(),
       'expectedHarvestStartDate': expectedHarvestStartDate?.toIso8601String(),
       'expectedHarvestEndDate': expectedHarvestEndDate?.toIso8601String(),

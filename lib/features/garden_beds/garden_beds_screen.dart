@@ -8,6 +8,7 @@ import 'add_bed_planting_screen.dart';
 import 'add_garden_bed_screen.dart';
 import 'edit_bed_planting_screen.dart';
 import 'edit_garden_bed_screen.dart';
+import 'visual_bed_layout_screen.dart';
 
 class GardenBedsScreen extends StatefulWidget {
   const GardenBedsScreen({super.key});
@@ -62,6 +63,20 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
     if (saved == true) {
       _reloadGardenBeds();
     }
+  }
+
+  void _openVisualLayoutScreen({
+    required GardenBed bed,
+    required List<GardenBedPlanting> plantings,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => VisualBedLayoutScreen(
+          bed: bed,
+          plantings: plantings,
+        ),
+      ),
+    );
   }
 
   Future<void> _openAddPlantingScreen(GardenBed bed) async {
@@ -225,6 +240,10 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
                 plantings: bedPlantings,
                 onAddCropPressed: () => _openAddPlantingScreen(bed),
                 onEditPressed: () => _openEditGardenBedScreen(bed),
+                onLayoutPressed: () => _openVisualLayoutScreen(
+                  bed: bed,
+                  plantings: bedPlantings,
+                ),
                 onDeletePressed: () => _deleteGardenBed(bed),
                 onDeletePlantingPressed: _deletePlanting,
                 onEditPlantingPressed: (planting) => _openEditPlantingScreen(
@@ -297,6 +316,7 @@ class _GardenBedCard extends StatelessWidget {
     required this.plantings,
     required this.onAddCropPressed,
     required this.onEditPressed,
+    required this.onLayoutPressed,
     required this.onDeletePressed,
     required this.onDeletePlantingPressed,
     required this.onEditPlantingPressed,
@@ -317,6 +337,7 @@ class _GardenBedCard extends StatelessWidget {
   final List<GardenBedPlanting> plantings;
   final VoidCallback onAddCropPressed;
   final VoidCallback onEditPressed;
+  final VoidCallback onLayoutPressed;
   final VoidCallback onDeletePressed;
   final ValueChanged<GardenBedPlanting> onDeletePlantingPressed;
   final ValueChanged<GardenBedPlanting> onEditPlantingPressed;
@@ -349,6 +370,11 @@ class _GardenBedCard extends StatelessWidget {
                       Text(_formatValue(bed.type)),
                     ],
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Visual layout',
+                  onPressed: onLayoutPressed,
+                  icon: const Icon(Icons.dashboard_customize_outlined),
                 ),
                 IconButton(
                   tooltip: 'Edit bed',
@@ -399,6 +425,11 @@ class _GardenBedCard extends StatelessWidget {
                     'Crops in this bed',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
+                ),
+                TextButton.icon(
+                  onPressed: onLayoutPressed,
+                  icon: const Icon(Icons.dashboard_customize_outlined),
+                  label: const Text('Layout'),
                 ),
                 TextButton.icon(
                   onPressed: onAddCropPressed,

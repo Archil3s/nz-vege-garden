@@ -111,8 +111,8 @@ class _VisualBedLayoutScreenState extends State<VisualBedLayoutScreen> {
                 zones: displayZones,
                 title: usingGenerated ? 'Suggested garden design' : 'Current garden design',
                 description: usingGenerated
-                    ? 'Generated plants are shown as scaled SVG crop icons based on spacing and bed density.'
-                    : 'Saved plant counts are shown as individual scaled SVG crop icons.',
+                    ? 'Generated plants are shown as individual SVG crop icons, scaled down by spacing and planting density.'
+                    : 'Saved plant counts are shown as individual SVG crop icons, scaled to avoid visual overstatement.',
               ),
               const SizedBox(height: 16),
               _SpacingGuideCard(zones: displayZones),
@@ -264,7 +264,7 @@ class _LayoutHeroCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Preview individual plants using scaled SVG crop icons.',
+                'Preview individual plants using reduced SVG crop icons.',
                 style: TextStyle(color: scheme.onPrimaryContainer),
               ),
               const SizedBox(height: 14),
@@ -398,30 +398,32 @@ class _VisualBedCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    return Stack(
-                      children: [
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: _BedBackgroundPainter(colorScheme: scheme),
+                    return RepaintBoundary(
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _BedBackgroundPainter(colorScheme: scheme),
+                            ),
                           ),
-                        ),
-                        ...markers.map(
-                          (marker) => Positioned(
-                            left: marker.xFraction * constraints.maxWidth - marker.iconSize / 2,
-                            top: marker.yFraction * constraints.maxHeight - marker.iconSize / 2,
-                            width: marker.iconSize,
-                            height: marker.iconSize,
-                            child: Tooltip(
-                              message: marker.title,
-                              child: GeneratedPlantIcon(
-                                cropName: marker.cropName,
-                                size: marker.iconSize,
+                          ...markers.map(
+                            (marker) => Positioned(
+                              left: marker.xFraction * constraints.maxWidth - marker.iconSize / 2,
+                              top: marker.yFraction * constraints.maxHeight - marker.iconSize / 2,
+                              width: marker.iconSize,
+                              height: marker.iconSize,
+                              child: Tooltip(
+                                message: marker.title,
+                                child: GeneratedPlantIcon(
+                                  cropName: marker.cropName,
+                                  size: marker.iconSize,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        if (markers.isEmpty) const Center(child: Text('No crops yet')),
-                      ],
+                          if (markers.isEmpty) const Center(child: Text('No crops yet')),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -454,13 +456,13 @@ class _VisualBedCard extends StatelessWidget {
     final rows = (zones.length / columns).ceil();
     final totalPlants = zones.fold<int>(0, (sum, zone) => sum + zone.plantCount.clamp(1, 120));
     final densityScale = totalPlants > 90
-        ? 0.58
+        ? 0.60
         : totalPlants > 60
-            ? 0.68
+            ? 0.70
             : totalPlants > 35
-                ? 0.78
+                ? 0.80
                 : totalPlants > 18
-                    ? 0.88
+                    ? 0.90
                     : 1.0;
 
     for (var zoneIndex = 0; zoneIndex < zones.length; zoneIndex++) {
@@ -474,8 +476,8 @@ class _VisualBedCard extends StatelessWidget {
       final count = zone.plantCount.clamp(1, 120);
       final gridColumns = math.max(1, math.sqrt(count * zoneWidth / zoneHeight).ceil());
       final gridRows = (count / gridColumns).ceil();
-      final spacingSize = (zone.spacingCm / 45 * 22).clamp(10.0, 26.0).toDouble();
-      final iconSize = (spacingSize * densityScale).clamp(8.0, 24.0).toDouble();
+      final spacingBasedSize = (zone.spacingCm / 45 * 20).clamp(12.0, 22.0).toDouble();
+      final iconSize = (spacingBasedSize * densityScale).clamp(10.0, 22.0).toDouble();
 
       for (var i = 0; i < count; i++) {
         final markerColumn = i % gridColumns;
@@ -585,7 +587,7 @@ class _DesignNoteCard extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.all(16),
         child: Text(
-          'The visual map uses individual SVG crop icons. Tightly spaced or high-density plantings are drawn smaller so the bed is not visually overrepresented.',
+          'The bed map uses individual reduced SVG crop icons only. It does not draw plant dots or circular markers. Tightly spaced or high-density plantings are scaled down to keep the layout visually accurate without losing icon clarity.',
         ),
       ),
     );

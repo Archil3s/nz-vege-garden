@@ -1,23 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../data/app_settings_repository.dart';
-import '../../data/garden_bed_planting_repository.dart';
-import '../../data/garden_bed_repository.dart';
 import '../../data/garden_data_repository.dart';
 import '../../data/models/app_settings.dart';
 import '../../data/models/crop.dart';
-import '../../data/models/garden_bed.dart';
-import '../../data/models/garden_bed_planting.dart';
 import '../../data/models/nz_region.dart';
 import '../calendar/crop_calendar_screen.dart';
 import '../crops/crop_guide_screen.dart';
-import '../garden_beds/garden_beds_screen.dart';
 import '../tasks/weekly_tasks_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
-
-  static const _nearHarvestWindowDays = 14;
 
   @override
   Widget build(BuildContext context) {
@@ -88,10 +81,6 @@ class HomeScreen extends StatelessWidget {
                 settings: data.settings,
               ),
               const SizedBox(height: 16),
-              _HarvestReadyCard(plantings: data.harvestReadyPlantings),
-              const SizedBox(height: 16),
-              _UpcomingHarvestsCard(plantings: data.upcomingHarvests),
-              const SizedBox(height: 16),
               Text(
                 'What to plant now',
                 style: Theme.of(context).textTheme.titleLarge,
@@ -126,17 +115,10 @@ class HomeScreen extends StatelessWidget {
   Future<_HomeData> _loadHomeData() async {
     const settingsRepository = AppSettingsRepository();
     const dataRepository = GardenDataRepository();
-    const bedRepository = GardenBedRepository();
-    const plantingRepository = GardenBedPlantingRepository();
 
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final nearHarvestDate = today.add(const Duration(days: _nearHarvestWindowDays));
-
     final settings = await settingsRepository.loadSettings();
     final regions = await dataRepository.loadRegions();
-    final beds = await bedRepository.loadGardenBeds();
-    final plantings = await plantingRepository.loadPlantings();
     final plantableCrops = await dataRepository.cropsForMonthAndRegion(
       month: now.month,
       regionId: settings.regionId,
@@ -148,32 +130,11 @@ class HomeScreen extends StatelessWidget {
       settings: settings,
     );
 
-    final activeHarvestPlantings = plantings
-        .where((planting) =>
-            planting.expectedHarvestStartDate != null &&
-            planting.status != 'finished' &&
-            planting.status != 'failed')
-        .toList(growable: false)
-      ..sort((a, b) => a.expectedHarvestStartDate!.compareTo(b.expectedHarvestStartDate!));
-
-    final harvestReadyPlantings = activeHarvestPlantings
-        .where((planting) => !planting.expectedHarvestStartDate!.isAfter(nearHarvestDate))
-        .toList(growable: false);
-
-    final upcomingHarvests = activeHarvestPlantings
-        .where((planting) => planting.expectedHarvestStartDate!.isAfter(nearHarvestDate))
-        .take(5)
-        .toList(growable: false);
-
     return _HomeData(
       settings: settings,
       selectedRegion: selectedRegion,
       plantableCrops: plantableCrops,
       recommendedCrops: recommendedCrops,
-      beds: beds,
-      plantings: plantings,
-      harvestReadyPlantings: harvestReadyPlantings,
-      upcomingHarvests: upcomingHarvests,
     );
   }
 
@@ -272,27 +233,22 @@ class _SummaryCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.count(
-      crossAxisCount: 3,
+      crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.05,
+      childAspectRatio: 1.7,
       mainAxisSpacing: 8,
       crossAxisSpacing: 8,
       children: [
         _SummaryCard(
-          icon: Icons.yard_outlined,
-          label: 'Beds',
-          value: data.beds.length.toString(),
-        ),
-        _SummaryCard(
           icon: Icons.eco_outlined,
-          label: 'Plantings',
-          value: data.plantings.length.toString(),
+          label: 'Plant now',
+          value: data.plantableCrops.length.toString(),
         ),
         _SummaryCard(
-          icon: Icons.shopping_basket_outlined,
-          label: 'Ready',
-          value: data.harvestReadyPlantings.length.toString(),
+          icon: Icons.recommend_outlined,
+          label: 'Best fit',
+          value: data.recommendedCrops.length.toString(),
         ),
       ],
     );
@@ -369,11 +325,6 @@ class _QuickActionsCard extends StatelessWidget {
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
               children: [
-                _QuickActionButton(
-                  icon: Icons.yard_outlined,
-                  label: 'Beds',
-                  onTap: () => _open(context, const GardenBedsScreen()),
-                ),
                 _QuickActionButton(
                   icon: Icons.menu_book_outlined,
                   label: 'Crop guide',
@@ -510,169 +461,18 @@ class _BestForSetupCard extends StatelessWidget {
   }
 }
 
-class _HarvestReadyCard extends StatelessWidget {
-  const _HarvestReadyCard({required this.plantings});
-
-  final List<GardenBedPlanting> plantings;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.shopping_basket_outlined),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Ready or nearly ready',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (plantings.isEmpty)
-              const Text(
-                'No crops are inside the next 14-day harvest window yet.',
-              )
-            else
-              ...plantings.map(
-                (planting) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(_urgencyIcon(planting)),
-                  title: Text(planting.cropName),
-                  subtitle: Text(_harvestMessage(planting)),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _urgencyIcon(GardenBedPlanting planting) {
-    final start = planting.expectedHarvestStartDate;
-    final end = planting.expectedHarvestEndDate;
-    final today = DateTime.now();
-    final dateOnly = DateTime(today.year, today.month, today.day);
-
-    if (end != null && dateOnly.isAfter(end)) {
-      return Icons.priority_high_outlined;
-    }
-
-    if (start != null && !dateOnly.isBefore(start)) {
-      return Icons.check_circle_outline;
-    }
-
-    return Icons.schedule_outlined;
-  }
-
-  String _harvestMessage(GardenBedPlanting planting) {
-    final start = planting.expectedHarvestStartDate;
-    final end = planting.expectedHarvestEndDate;
-
-    if (start == null || end == null) {
-      return 'No harvest estimate available';
-    }
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final startDate = DateTime(start.year, start.month, start.day);
-    final endDate = DateTime(end.year, end.month, end.day);
-
-    if (today.isAfter(endDate)) {
-      return 'Harvest window may have passed: ${_formatDate(startDate)} to ${_formatDate(endDate)}';
-    }
-
-    if (!today.isBefore(startDate)) {
-      return 'In harvest window: ${_formatDate(startDate)} to ${_formatDate(endDate)}';
-    }
-
-    final daysUntilStart = startDate.difference(today).inDays;
-    return 'Ready in $daysUntilStart days: ${_formatDate(startDate)} to ${_formatDate(endDate)}';
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-}
-
-class _UpcomingHarvestsCard extends StatelessWidget {
-  const _UpcomingHarvestsCard({required this.plantings});
-
-  final List<GardenBedPlanting> plantings;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Later harvests',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            if (plantings.isEmpty)
-              const Text('No later harvest estimates yet.')
-            else
-              ...plantings.map(
-                (planting) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.event_available_outlined),
-                  title: Text(planting.cropName),
-                  subtitle: Text(_harvestWindow(planting)),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _harvestWindow(GardenBedPlanting planting) {
-    final start = planting.expectedHarvestStartDate;
-    final end = planting.expectedHarvestEndDate;
-
-    if (start == null || end == null) {
-      return 'No estimate available';
-    }
-
-    return '${_formatDate(start)} to ${_formatDate(end)}';
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-}
-
 class _HomeData {
   const _HomeData({
     required this.settings,
     required this.selectedRegion,
     required this.plantableCrops,
     required this.recommendedCrops,
-    required this.beds,
-    required this.plantings,
-    required this.harvestReadyPlantings,
-    required this.upcomingHarvests,
   });
 
   final AppSettings settings;
   final NzRegion? selectedRegion;
   final List<Crop> plantableCrops;
   final List<Crop> recommendedCrops;
-  final List<GardenBed> beds;
-  final List<GardenBedPlanting> plantings;
-  final List<GardenBedPlanting> harvestReadyPlantings;
-  final List<GardenBedPlanting> upcomingHarvests;
 }
 
 class _ScoredCrop {

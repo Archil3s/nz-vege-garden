@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../data/app_settings_repository.dart';
@@ -38,12 +39,16 @@ class HomeScreen extends StatelessWidget {
           Positioned(
             top: -120,
             right: -120,
-            child: _SoftCircle(color: _mint.withOpacity(0.95), size: 270),
+            child: RepaintBoundary(
+              child: _SoftCircle(color: _mint.withOpacity(0.95), size: 270),
+            ),
           ),
           Positioned(
             top: 250,
             left: -150,
-            child: _SoftCircle(color: const Color(0xFFF4C86A).withOpacity(0.22), size: 290),
+            child: RepaintBoundary(
+              child: _SoftCircle(color: const Color(0xFFF4C86A).withOpacity(0.22), size: 290),
+            ),
           ),
           FutureBuilder<_HomeData>(
             future: _loadHomeData(),
@@ -76,19 +81,23 @@ class HomeScreen extends StatelessWidget {
                   118,
                 ),
                 children: [
-                  _HeroDashboardCard(
-                    regionName: regionName,
-                    data: data,
-                    formatValue: _formatValue,
+                  RepaintBoundary(
+                    child: _HeroDashboardCard(
+                      regionName: regionName,
+                      data: data,
+                      formatValue: _formatValue,
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  _SummaryCards(data: data),
+                  RepaintBoundary(child: _SummaryCards(data: data)),
                   const SizedBox(height: 16),
-                  const _QuickActionsCard(),
+                  const RepaintBoundary(child: _QuickActionsCard()),
                   const SizedBox(height: 16),
-                  _BestForSetupCard(
-                    crops: data.recommendedCrops,
-                    settings: data.settings,
+                  RepaintBoundary(
+                    child: _BestForSetupCard(
+                      crops: data.recommendedCrops,
+                      settings: data.settings,
+                    ),
                   ),
                   const SizedBox(height: 18),
                   Row(
@@ -111,16 +120,18 @@ class HomeScreen extends StatelessWidget {
                       child: Text('No matching crops found for this month.'),
                     )
                   else
-                    SizedBox(
-                      height: 156,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: data.plantableCrops.take(8).length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 12),
-                        itemBuilder: (context, index) {
-                          final crop = data.plantableCrops[index];
-                          return _CropTapCard(crop: crop);
-                        },
+                    RepaintBoundary(
+                      child: SizedBox(
+                        height: 156,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: data.plantableCrops.take(8).length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            final crop = data.plantableCrops[index];
+                            return _CropTapCard(crop: crop);
+                          },
+                        ),
                       ),
                     ),
                 ],
@@ -224,6 +235,15 @@ class HomeScreen extends StatelessWidget {
         .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
   }
+}
+
+void _openCropBottomSheet(BuildContext context, Crop crop) {
+  HapticFeedback.selectionClick();
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) => _CropBottomSheet(crop: crop),
+  );
 }
 
 class _HeroDashboardCard extends StatelessWidget {
@@ -454,6 +474,7 @@ class _QuickActionsCard extends StatelessWidget {
   }
 
   void _open(BuildContext context, Widget screen) {
+    HapticFeedback.selectionClick();
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => screen),
     );
@@ -469,36 +490,38 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(28),
-        onTap: onTap,
-        child: Ink(
-          width: 132,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: HomeScreen._surface,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: HomeScreen._border),
-            boxShadow: const [
-              BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10)),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SvgPicture.asset(asset, width: 66, height: 66),
-              const SizedBox(height: 10),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: HomeScreen._ink,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
+    return RepaintBoundary(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: onTap,
+          child: Ink(
+            width: 132,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: HomeScreen._surface,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: HomeScreen._border),
+              boxShadow: const [
+                BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10)),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SvgPicture.asset(asset, width: 66, height: 66),
+                const SizedBox(height: 10),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: HomeScreen._ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -563,25 +586,32 @@ class _CropChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
-      decoration: BoxDecoration(
-        color: HomeScreen._mint,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _PlantBadge(label: crop.commonName, size: 30),
-          const SizedBox(width: 7),
-          Text(
-            crop.commonName,
-            style: const TextStyle(
-              color: HomeScreen._leafDark,
-              fontWeight: FontWeight.w900,
-            ),
+        onTap: () => _openCropBottomSheet(context, crop),
+        child: Ink(
+          padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+          decoration: BoxDecoration(
+            color: HomeScreen._mint,
+            borderRadius: BorderRadius.circular(999),
           ),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _PlantBadge(label: crop.commonName, size: 30),
+              const SizedBox(width: 7),
+              Text(
+                crop.commonName,
+                style: const TextStyle(
+                  color: HomeScreen._leafDark,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -594,47 +624,45 @@ class _CropTapCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(28),
-        onTap: () => showModalBottomSheet<void>(
-          context: context,
-          showDragHandle: true,
-          builder: (context) => _CropBottomSheet(crop: crop),
-        ),
-        child: Ink(
-          width: 132,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: HomeScreen._surface,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: HomeScreen._border),
-            boxShadow: const [
-              BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10)),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const _SvgIconBox(asset: 'assets/icons/seedling.svg', size: 58),
-              const SizedBox(height: 10),
-              Text(
-                crop.commonName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: HomeScreen._ink,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
+    return RepaintBoundary(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: () => _openCropBottomSheet(context, crop),
+          child: Ink(
+            width: 132,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: HomeScreen._surface,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: HomeScreen._border),
+              boxShadow: const [
+                BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10)),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const _SvgIconBox(asset: 'assets/icons/seedling.svg', size: 58),
+                const SizedBox(height: 10),
+                Text(
+                  crop.commonName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: HomeScreen._ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 7),
-              if (crop.frostTender)
-                const _MiniPill(label: 'frost', color: HomeScreen._clay)
-              else
-                const _MiniPill(label: 'hardy'),
-            ],
+                const SizedBox(height: 7),
+                if (crop.frostTender)
+                  const _MiniPill(label: 'frost', color: HomeScreen._clay)
+                else
+                  const _MiniPill(label: 'hardy'),
+              ],
+            ),
           ),
         ),
       ),
@@ -676,7 +704,10 @@ class _CropBottomSheet extends StatelessWidget {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.pop(context);
+                  },
                   icon: const Icon(Icons.add),
                   label: const Text('Add later'),
                 ),
@@ -684,7 +715,10 @@ class _CropBottomSheet extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.pop(context);
+                  },
                   icon: const Icon(Icons.close),
                   label: const Text('Close'),
                 ),

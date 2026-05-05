@@ -1,6 +1,5 @@
 import 'app_settings_repository.dart';
 import 'garden_data_repository.dart';
-import 'models/app_settings.dart';
 import 'models/task_rule.dart';
 
 class WeeklyTaskService {
@@ -16,6 +15,7 @@ class WeeklyTaskService {
     final date = now ?? DateTime.now();
     final settings = await settingsRepository.loadSettings();
     final rules = await dataRepository.loadTaskRules();
+    final successionRules = await dataRepository.loadSuccessionRules();
 
     final matchingRules = rules
         .where((rule) => rule.appliesToMonth(date.month))
@@ -23,7 +23,28 @@ class WeeklyTaskService {
         .where((rule) => rule.appliesToGardenType(settings.gardenType))
         .where((rule) => rule.appliesToFrostRisk(settings.frostRisk))
         .where((rule) => rule.appliesToWindExposure(settings.windExposure))
-        .toList(growable: false);
+        .toList(growable: true);
+
+    final matchingSuccessionRules = successionRules
+        .where((rule) => rule.appliesToMonth(date.month))
+        .where((rule) => rule.appliesToGardenType(settings.gardenType))
+        .where((rule) => rule.appliesToFrostRisk(settings.frostRisk))
+        .where((rule) => rule.appliesToWindExposure(settings.windExposure))
+        .map(
+          (rule) => TaskRule.generated(
+            id: 'succession:${rule.id}:${_weekKey(date)}',
+            title: rule.title,
+            description:
+                '${rule.description}\nRepeat every ${rule.intervalDays} days while conditions suit.',
+            taskType: 'succession',
+            startMonth: rule.startMonth,
+            endMonth: rule.endMonth,
+            cropIds: [rule.cropId],
+            priority: rule.priority,
+          ),
+        );
+
+    matchingRules.addAll(matchingSuccessionRules);
 
     return _sortByPriorityThenTitle(matchingRules);
   }
@@ -41,5 +62,12 @@ class WeeklyTaskService {
     });
 
     return sortedRules;
+  }
+
+  String _weekKey(DateTime date) {
+    final monday = DateTime(date.year, date.month, date.day)
+        .subtract(Duration(days: date.weekday - DateTime.monday));
+
+    return '${monday.year}-${monday.month.toString().padLeft(2, '0')}-${monday.day.toString().padLeft(2, '0')}';
   }
 }

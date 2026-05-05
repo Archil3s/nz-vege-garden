@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../data/garden_data_repository.dart';
 import '../../data/models/crop.dart';
+import '../../data/models/pest_problem.dart';
 
 class CropDetailScreen extends StatelessWidget {
   const CropDetailScreen({
@@ -82,6 +84,7 @@ class CropDetailScreen extends StatelessWidget {
             icon: Icons.eco_outlined,
             child: Text(_buildGrowingNotes(crop)),
           ),
+          _CropProblemsSection(crop: crop),
           _InfoSection(
             title: 'MVP data note',
             icon: Icons.info_outline,
@@ -125,6 +128,138 @@ class CropDetailScreen extends StatelessWidget {
         .split('_')
         .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
+  }
+}
+
+class _CropProblemsSection extends StatelessWidget {
+  const _CropProblemsSection({required this.crop});
+
+  final Crop crop;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<PestProblem>>(
+      future: const GardenDataRepository().loadPestProblems(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _InfoSection(
+            title: 'Likely pests and problems',
+            icon: Icons.bug_report_outlined,
+            child: LinearProgressIndicator(),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return _InfoSection(
+            title: 'Likely pests and problems',
+            icon: Icons.bug_report_outlined,
+            child: Text('Could not load pest/problem data: ${snapshot.error}'),
+          );
+        }
+
+        final problems = (snapshot.data ?? const <PestProblem>[])
+            .where((problem) => problem.commonCrops.contains(crop.id))
+            .toList(growable: false)
+          ..sort((a, b) => a.name.compareTo(b.name));
+
+        if (problems.isEmpty) {
+          return _InfoSection(
+            title: 'Likely pests and problems',
+            icon: Icons.bug_report_outlined,
+            child: const Text(
+              'No linked pest or problem entries yet. This will improve as the offline database expands.',
+            ),
+          );
+        }
+
+        return _InfoSection(
+          title: 'Likely pests and problems',
+          icon: Icons.bug_report_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Common issues linked to this crop in the offline guide:',
+              ),
+              const SizedBox(height: 8),
+              ...problems.map(
+                (problem) => ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  leading: Icon(_iconForCategory(problem.category)),
+                  title: Text(problem.name),
+                  subtitle: Text(_formatValue(problem.category)),
+                  childrenPadding: const EdgeInsets.only(bottom: 12),
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(problem.summary),
+                    ),
+                    const SizedBox(height: 8),
+                    _MiniList(title: 'Signs', items: problem.signs),
+                    _MiniList(title: 'Actions', items: problem.actions),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  IconData _iconForCategory(String category) {
+    return switch (category) {
+      'pest' => Icons.bug_report_outlined,
+      'disease' => Icons.coronavirus_outlined,
+      'crop_problem' => Icons.warning_amber_outlined,
+      _ => Icons.info_outline,
+    };
+  }
+
+  String _formatValue(String value) {
+    return value
+        .split('_')
+        .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+  }
+}
+
+class _MiniList extends StatelessWidget {
+  const _MiniList({
+    required this.title,
+    required this.items,
+  });
+
+  final String title;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          ...items.take(3).map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('• '),
+                      Expanded(child: Text(item)),
+                    ],
+                  ),
+                ),
+              ),
+        ],
+      ),
+    );
   }
 }
 

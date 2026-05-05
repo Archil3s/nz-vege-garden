@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, Python data validation tooling, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, searchable/filterable crop and pest/problem guides, a working local garden bed planner UI with editable beds, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, generated weekly task recommendations, and the first local notification foundation.
+The repo now contains the planning documents, expanded bundled seed data, Python data validation tooling, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, searchable/filterable crop and pest/problem guides, a working local garden bed planner UI with editable beds, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, generated weekly task recommendations with weekly completion tracking, and the first local notification foundation.
 
 GitHub Pages preview work has been removed for now. The app will be tested locally on a PC with Flutter tooling.
 
@@ -225,6 +225,43 @@ Implemented:
 - Added edit icon to garden bed cards
 - Added delete confirmation before removing a bed and its plantings
 
+### Weekly task generation and completion tracking
+
+Added:
+
+```text
+assets/data/task_rules.json
+lib/data/models/task_rule.dart
+lib/data/weekly_task_service.dart
+lib/data/task_completion_repository.dart
+```
+
+Updated:
+
+```text
+pubspec.yaml
+lib/data/garden_data_repository.dart
+lib/features/tasks/weekly_tasks_screen.dart
+```
+
+Implemented:
+
+- Offline weekly task rule seed data
+- TaskRule model
+- Asset registration for task rules
+- Data repository loading for task rules
+- WeeklyTaskService for generated recommendations
+- Filtering by month, region, garden type, frost risk, and wind exposure
+- Priority-based task sorting
+- Local task completion storage with `shared_preferences`
+- Completion scoped by week using the Monday date as the week key
+- Weekly progress summary card
+- Checkbox-style task cards
+- Tap-to-toggle task completion
+- Completed task styling and Done chip
+- Reset button to clear completions for the current week
+- Empty state when no task rules match
+
 ### Expanded crop database
 
 Updated:
@@ -286,37 +323,6 @@ Implemented:
 - Expandable pest/problem cards
 - Signs, actions, prevention notes, and seasonal notes
 - Category icons for pests, diseases, and crop problems
-
-### Weekly task generation
-
-Added:
-
-```text
-assets/data/task_rules.json
-lib/data/models/task_rule.dart
-lib/data/weekly_task_service.dart
-```
-
-Updated:
-
-```text
-pubspec.yaml
-lib/data/garden_data_repository.dart
-lib/features/tasks/weekly_tasks_screen.dart
-```
-
-Implemented:
-
-- Offline weekly task rule seed data
-- TaskRule model
-- Asset registration for task rules
-- Data repository loading for task rules
-- WeeklyTaskService for generated recommendations
-- Filtering by month, region, garden type, frost risk, and wind exposure
-- Priority-based task sorting
-- Data-driven Weekly Tasks screen
-- Task cards with task type icons, title, description, priority, and type
-- Empty state when no task rules match
 
 ### Local notifications foundation
 
@@ -405,7 +411,7 @@ Current screens:
 - Home: garden dashboard, upcoming harvests, and what-to-plant-now list
 - Crops: searchable/filterable crop guide with detail pages
 - Beds: working garden bed planner with bed edits, crop planting, harvest estimates, and planting edits
-- Tasks: generated weekly task recommendations
+- Tasks: generated weekly task checklist with progress tracking
 - Pests: searchable/filterable offline pest/problem guide
 - Settings: editable local setup screen with reminder toggle
 
@@ -504,18 +510,17 @@ Implemented:
 
 ## In progress
 
-### Task completion tracking
+### Planting status quick actions
 
 Goal:
 
-- Let users mark generated weekly tasks as done
-- Store completion status locally
-- Reset or scope completion by week
-- Make the Tasks screen more actionable
+- Let users update planted crop status faster from bed cards
+- Reduce the need to open the full planting editor for common status changes
+- Keep detailed editing available for date and notes changes
 
 ## Next planned work
 
-1. Add task completion tracking
+1. Add planting status quick actions
 2. Test locally on PC
 3. Run `python tools/preflight.py --no-flutter`
 4. Fix any data/static validation issues

@@ -39,3 +39,4 @@ flutter:
     - assets/data/planting_rules.json
     - assets/data/pests.json
     - assets/data/task_rules.json
+    - assets/data/succession_rules.json

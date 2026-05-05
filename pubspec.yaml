@@ -41,3 +41,4 @@ flutter:
     - assets/data/pests.json
     - assets/data/task_rules.json
     - assets/data/succession_rules.json
+    - assets/icons/

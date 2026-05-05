@@ -37,7 +37,6 @@ class _AppShellState extends State<AppShell> {
   List<Widget> get _screens => [
         const HomeScreen(),
         const InsightsScreen(),
-        const CropGuideScreen(),
         const GardenBedsScreen(),
         _MoreScreen(onOpenSection: _openSection),
       ];
@@ -52,38 +51,38 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_selectedIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() => _selectedIndex = index);
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
-            label: 'Insights',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book),
-            label: 'Crops',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.yard_outlined),
-            selectedIcon: Icon(Icons.yard),
-            label: 'Beds',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.more_horiz_outlined),
-            selectedIcon: Icon(Icons.more_horiz),
-            label: 'More',
-          ),
-        ],
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: NavigationBar(
+          height: 68,
+          labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: (index) {
+            setState(() => _selectedIndex = index);
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.insights_outlined),
+              selectedIcon: Icon(Icons.insights),
+              label: 'Insights',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.yard_outlined),
+              selectedIcon: Icon(Icons.yard),
+              label: 'Beds',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.more_horiz_outlined),
+              selectedIcon: Icon(Icons.more_horiz),
+              label: 'More',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -113,6 +112,12 @@ class _MoreScreen extends StatelessWidget {
           _MoreSectionCard(
             title: 'Planning',
             children: [
+              _MoreSectionTile(
+                icon: Icons.menu_book_outlined,
+                title: 'Crop guide',
+                description: 'Search crops, spacing, harvest timing, and growing notes.',
+                onTap: () => onOpenSection(const CropGuideScreen()),
+              ),
               _MoreSectionTile(
                 icon: Icons.calendar_month_outlined,
                 title: 'Crop calendar',

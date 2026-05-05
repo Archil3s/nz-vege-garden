@@ -75,76 +75,17 @@ jobs:
               <meta name="build-revision" content="${SHORT_REV}">
               <title>${BUILD_TITLE} · build needs fix</title>
               <style>
-                :root {
-                  color-scheme: light;
-                  --canvas: #f8f3e8;
-                  --card: #fffcf5;
-                  --ink: #172d22;
-                  --muted: #66736a;
-                  --leaf: #2f724b;
-                  --clay: #c4793d;
-                  --border: #e7dfce;
-                }
+                :root { color-scheme: light; --canvas: #f8f3e8; --card: #fffcf5; --ink: #172d22; --muted: #66736a; --leaf: #2f724b; --clay: #c4793d; --border: #e7dfce; }
                 * { box-sizing: border-box; }
-                body {
-                  margin: 0;
-                  min-height: 100vh;
-                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-                  background:
-                    radial-gradient(circle at 90% 0%, #e7f0db 0, transparent 32%),
-                    radial-gradient(circle at 0% 35%, rgba(244, 200, 106, .28) 0, transparent 30%),
-                    var(--canvas);
-                  color: var(--ink);
-                  display: grid;
-                  place-items: center;
-                  padding: 20px;
-                }
-                .card {
-                  width: min(520px, 100%);
-                  border: 1px solid var(--border);
-                  border-radius: 32px;
-                  background: var(--card);
-                  box-shadow: 0 18px 42px rgba(23, 45, 34, .16);
-                  overflow: hidden;
-                }
-                .hero {
-                  padding: 28px;
-                  color: white;
-                  background: linear-gradient(135deg, #17452f, #2f724b, #8ba766);
-                }
-                .pill {
-                  display: inline-flex;
-                  padding: 8px 12px;
-                  border-radius: 999px;
-                  background: rgba(255,255,255,.16);
-                  border: 1px solid rgba(255,255,255,.22);
-                  font-size: 13px;
-                  font-weight: 800;
-                }
-                h1 {
-                  margin: 18px 0 8px;
-                  font-size: 36px;
-                  line-height: .98;
-                  letter-spacing: -1px;
-                }
+                body { margin: 0; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 90% 0%, #e7f0db 0, transparent 32%), radial-gradient(circle at 0% 35%, rgba(244, 200, 106, .28) 0, transparent 30%), var(--canvas); color: var(--ink); display: grid; place-items: center; padding: 20px; }
+                .card { width: min(520px, 100%); border: 1px solid var(--border); border-radius: 32px; background: var(--card); box-shadow: 0 18px 42px rgba(23, 45, 34, .16); overflow: hidden; }
+                .hero { padding: 28px; color: white; background: linear-gradient(135deg, #17452f, #2f724b, #8ba766); }
+                .pill { display: inline-flex; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.22); font-size: 13px; font-weight: 800; }
+                h1 { margin: 18px 0 8px; font-size: 36px; line-height: .98; letter-spacing: -1px; }
                 .body { padding: 24px 28px 28px; }
-                .status {
-                  display: inline-flex;
-                  padding: 8px 12px;
-                  border-radius: 999px;
-                  color: var(--clay);
-                  background: rgba(196, 121, 61, .12);
-                  font-weight: 900;
-                  font-size: 13px;
-                }
+                .status { display: inline-flex; padding: 8px 12px; border-radius: 999px; color: var(--clay); background: rgba(196, 121, 61, .12); font-weight: 900; font-size: 13px; }
                 dl { display: grid; gap: 12px; margin: 22px 0; }
-                .row {
-                  display: flex;
-                  justify-content: space-between;
-                  gap: 16px;
-                  padding-bottom: 12px;
-                  border-bottom: 1px solid var(--border);
-                }
+                .row { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
                 dt { color: var(--muted); font-weight: 700; }
                 dd { margin: 0; font-weight: 900; text-align: right; }
                 p { color: var(--muted); line-height: 1.5; }
@@ -196,6 +137,32 @@ jobs:
               html = re.sub(r'<meta name="build-revision" content=".*?">', meta, html, count=1)
           else:
               html = html.replace('</head>', f'  {meta}\n</head>')
+
+          badge = f'''
+          <script>
+            window.addEventListener('load', function () {{
+              var badge = document.createElement('div');
+              badge.textContent = 'rev {short_rev}';
+              badge.setAttribute('aria-label', 'Preview revision {short_rev}');
+              badge.style.position = 'fixed';
+              badge.style.top = '12px';
+              badge.style.right = '12px';
+              badge.style.zIndex = '2147483647';
+              badge.style.padding = '8px 11px';
+              badge.style.borderRadius = '999px';
+              badge.style.background = 'rgba(23, 45, 34, 0.92)';
+              badge.style.color = '#fff';
+              badge.style.fontFamily = '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+              badge.style.fontSize = '12px';
+              badge.style.fontWeight = '800';
+              badge.style.boxShadow = '0 8px 22px rgba(0,0,0,.22)';
+              badge.style.backdropFilter = 'blur(10px)';
+              document.body.appendChild(badge);
+            }});
+          </script>
+          '''
+          if 'Preview revision' not in html:
+              html = html.replace('</body>', badge + '\n</body>')
 
           index_path.write_text(html, encoding='utf-8')
           PY

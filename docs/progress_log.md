@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, a working local garden bed planner UI, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and the first local notification foundation.
+The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, a searchable/filterable crop guide, a working local garden bed planner UI, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and the first local notification foundation.
 
 GitHub Pages preview work has been removed for now. The app will be tested locally on a PC with Flutter tooling.
 
@@ -69,6 +69,25 @@ Implemented:
 - Upcoming harvest list from planted crops
 - Region-aware what-to-plant-now list remains on the Home screen
 - Dashboard uses only bundled data and local device storage
+
+### Crop guide filtering
+
+Updated:
+
+```text
+lib/features/crops/crop_guide_screen.dart
+```
+
+Implemented:
+
+- Search crops by name and summary
+- Category filters for all, vegetables, and herbs
+- Beginner-friendly filter
+- Container-friendly filter
+- Result count display
+- Clear search and clear filters actions
+- Empty state for no matching crops
+- Crop detail navigation preserved
 
 ### Seed data
 
@@ -307,7 +326,7 @@ lib/features/settings/settings_screen.dart
 Current screens:
 
 - Home: garden dashboard, upcoming harvests, and what-to-plant-now list
-- Crops: lists crop guide entries and opens detail pages
+- Crops: searchable/filterable crop guide with detail pages
 - Beds: working garden bed planner with crop planting, harvest estimates, and planting edits
 - Tasks: generated weekly task recommendations
 - Pests: offline pest/problem guide
@@ -422,7 +441,7 @@ Goal:
 1. Test locally on PC
 2. Fix any compile/analyzer issues
 3. Harden local notifications after device testing
-4. Add dashboard polish if needed after testing
+4. Add pest guide filtering/search
 5. Add app tests once the first workflow is stable
 
 ## GitHub issues created

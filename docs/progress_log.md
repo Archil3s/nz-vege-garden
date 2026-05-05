@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, Python data validation tooling, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, a searchable/filterable crop guide, a working local garden bed planner UI, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and the first local notification foundation.
+The repo now contains the planning documents, expanded bundled seed data, Python data validation tooling, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, searchable/filterable crop and pest/problem guides, a working local garden bed planner UI, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, generated weekly task recommendations, and the first local notification foundation.
 
 GitHub Pages preview work has been removed for now. The app will be tested locally on a PC with Flutter tooling.
 
@@ -58,6 +58,8 @@ Added:
 
 ```text
 tools/validate_data.py
+tools/static_sanity_check.py
+tools/preflight.py
 tools/README.md
 ```
 
@@ -70,12 +72,14 @@ README.md
 Implemented:
 
 - Standard-library Python data validation script
+- Static sanity checker for relative Dart imports and asset references
+- Local preflight runner for data, static, and optional Flutter checks
 - Validates crop data structure, IDs, harvest ranges, spacing, and booleans
 - Validates region data structure and IDs
 - Validates planting rule month ranges and crop/region references
 - Validates pest/problem lists and crop references
 - Validates task rule month ranges, priorities, and crop/region references
-- Documents how to run the validator locally
+- Documents how to run the validators locally
 
 ### Garden dashboard
 
@@ -113,6 +117,25 @@ Implemented:
 - Clear search and clear filters actions
 - Empty state for no matching crops
 - Crop detail navigation preserved
+
+### Pest/problem guide filtering
+
+Updated:
+
+```text
+lib/features/pests/pest_guide_screen.dart
+```
+
+Implemented:
+
+- Search pests/problems by name, category, summary, signs, actions, prevention, and seasonal notes
+- Category filters for all, pests, diseases, and crop problems
+- Affected-crop dropdown filter
+- Result count display
+- Clear search and clear filters actions
+- Empty state for no matching entries
+- Affected crop chips with readable crop names
+- Expandable signs, actions, prevention, and seasonal notes preserved
 
 ### Seed data
 
@@ -354,7 +377,7 @@ Current screens:
 - Crops: searchable/filterable crop guide with detail pages
 - Beds: working garden bed planner with crop planting, harvest estimates, and planting edits
 - Tasks: generated weekly task recommendations
-- Pests: offline pest/problem guide
+- Pests: searchable/filterable offline pest/problem guide
 - Settings: editable local setup screen with reminder toggle
 
 ### Local setup flow
@@ -452,23 +475,22 @@ Implemented:
 
 ## In progress
 
-### Testing and platform hardening
+### Garden bed edit screen
 
 Goal:
 
-- Run the app on PC with Flutter tooling
-- Fix compile/analyzer errors found locally
-- Verify notification behaviour on Android/iOS
-- Add more useful tests once the app compiles cleanly on local tooling
+- Let users edit saved bed details instead of deleting/recreating beds
+- Reuse the existing add-bed form where possible
+- Preserve plantings attached to the bed
 
 ## Next planned work
 
-1. Test locally on PC
-2. Run `python tools/validate_data.py`
-3. Fix any data validation issues
-4. Fix any Flutter compile/analyzer issues
-5. Harden local notifications after device testing
-6. Add pest guide filtering/search
+1. Add garden bed edit screen
+2. Test locally on PC
+3. Run `python tools/preflight.py --no-flutter`
+4. Fix any data/static validation issues
+5. Fix any Flutter compile/analyzer issues
+6. Harden local notifications after device testing
 
 ## GitHub issues created
 

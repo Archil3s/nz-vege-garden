@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, Python data validation tooling, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, searchable/filterable crop and pest/problem guides, a working local garden bed planner UI with editable beds, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, generated weekly task recommendations with weekly completion tracking, and the first local notification foundation.
+The repo now contains the planning documents, expanded bundled seed data, Python data validation tooling, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, searchable/filterable crop and pest/problem guides, a working local garden bed planner UI with editable beds, crop-to-bed planting with editable planting details, quick status actions, and estimated harvest windows, navigable crop detail pages, generated weekly task recommendations with weekly completion tracking, and the first local notification foundation.
 
 GitHub Pages preview work has been removed for now. The app will be tested locally on a PC with Flutter tooling.
 
@@ -192,6 +192,8 @@ Implemented:
 - Edit planting date
 - Edit planting notes
 - Recalculate harvest estimate when planting date changes
+- Quick status actions from bed cards
+- Status-specific icons for planted crop rows
 - Delete planting from detail screen
 - Remove planted crop from a bed
 - Delete bed also removes plantings for that bed
@@ -410,7 +412,7 @@ Current screens:
 
 - Home: garden dashboard, upcoming harvests, and what-to-plant-now list
 - Crops: searchable/filterable crop guide with detail pages
-- Beds: working garden bed planner with bed edits, crop planting, harvest estimates, and planting edits
+- Beds: working garden bed planner with bed edits, crop planting, harvest estimates, planting edits, and quick status actions
 - Tasks: generated weekly task checklist with progress tracking
 - Pests: searchable/filterable offline pest/problem guide
 - Settings: editable local setup screen with reminder toggle
@@ -510,17 +512,17 @@ Implemented:
 
 ## In progress
 
-### Planting status quick actions
+### Harvest-ready dashboard section
 
 Goal:
 
-- Let users update planted crop status faster from bed cards
-- Reduce the need to open the full planting editor for common status changes
-- Keep detailed editing available for date and notes changes
+- Highlight crops that are currently within or near their estimated harvest window
+- Separate urgent/current harvests from general upcoming harvests
+- Make the Home dashboard more actionable
 
 ## Next planned work
 
-1. Add planting status quick actions
+1. Add harvest-ready dashboard section
 2. Test locally on PC
 3. Run `python tools/preflight.py --no-flutter`
 4. Fix any data/static validation issues

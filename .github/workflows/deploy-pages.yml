@@ -17,12 +17,23 @@ concurrency:
 
 jobs:
   build:
-    name: Build Flutter web app
+    name: Validate, build, and package Flutter web app
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate bundled offline data
+        run: python tools/validate_data.py
+
+      - name: Run static repository sanity checks
+        run: python tools/static_sanity_check.py
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -35,6 +46,12 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Analyze Flutter project
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
 
       - name: Build web preview
         run: flutter build web --release --base-href /nz-vege-garden/

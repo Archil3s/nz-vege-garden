@@ -7,10 +7,11 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   flutter:
-    name: Analyze and test
+    name: Analyze, test, and build offline web view
     runs-on: ubuntu-latest
 
     steps:
@@ -37,3 +38,37 @@ jobs:
 
       - name: Run tests
         run: flutter test
+
+      - name: Build offline web view
+        run: flutter build web --release --base-href ./
+
+      - name: Add offline viewing notes
+        run: |
+          cat > build/web/OFFLINE_VIEW_README.txt <<'EOF'
+          NZ Vege Garden - Offline Web View
+
+          This artifact contains the static Flutter Web release build.
+
+          To view locally:
+          1. Download and unzip the artifact.
+          2. Serve the folder with a tiny local web server.
+
+          Example:
+            cd build/web
+            python3 -m http.server 8080
+
+          Then open:
+            http://localhost:8080
+
+          Notes:
+          - Opening index.html directly from the file system may not work in all browsers.
+          - This is a static offline preview artifact. Network-backed features still require their services.
+          EOF
+
+      - name: Upload offline web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nz-vege-garden-offline-web
+          path: build/web
+          if-no-files-found: error
+          retention-days: 14

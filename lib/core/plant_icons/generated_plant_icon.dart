@@ -24,21 +24,34 @@ class GeneratedPlantIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final key = _iconKeyForCrop(cropName);
-    final svg = key == 'potato' ? _potatoSvg : generatedPlantSvgs[key];
+    final rawSvg = key == 'potato' ? _potatoSvg : generatedPlantSvgs[key];
 
-    if (svg == null) {
-      return Icon(
-        Icons.local_florist,
-        size: size,
-      );
+    if (rawSvg == null) {
+      return _fallbackIcon(context);
     }
+
+    final svg = _normaliseSvg(rawSvg);
 
     return SvgPicture.string(
       svg,
       width: size,
       height: size,
       fit: BoxFit.contain,
+      placeholderBuilder: (_) => _fallbackIcon(context),
+      errorBuilder: (_, __, ___) => _fallbackIcon(context),
     );
+  }
+
+  Widget _fallbackIcon(BuildContext context) {
+    return Icon(
+      Icons.local_florist,
+      size: size,
+      color: Theme.of(context).colorScheme.primary,
+    );
+  }
+
+  String _normaliseSvg(String svg) {
+    return svg.replaceAll(r'\"', '"').trim();
   }
 
   String _iconKeyForCrop(String value) {

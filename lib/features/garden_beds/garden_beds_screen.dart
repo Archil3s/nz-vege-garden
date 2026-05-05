@@ -147,6 +147,37 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
     _reloadGardenBeds();
   }
 
+  Future<void> _updatePlantingStatus({
+    required GardenBedPlanting planting,
+    required String status,
+  }) async {
+    final updatedPlanting = planting.copyWith(
+      status: status,
+      updatedAt: DateTime.now(),
+    );
+
+    await _plantingRepository.updatePlanting(updatedPlanting);
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${planting.cropName} marked as ${_formatValue(status)}.'),
+      ),
+    );
+
+    _reloadGardenBeds();
+  }
+
+  String _formatValue(String value) {
+    return value
+        .split('_')
+        .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -199,6 +230,10 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
                 onEditPlantingPressed: (planting) => _openEditPlantingScreen(
                   bed: bed,
                   planting: planting,
+                ),
+                onStatusChanged: (planting, status) => _updatePlantingStatus(
+                  planting: planting,
+                  status: status,
                 ),
               );
             },
@@ -265,7 +300,18 @@ class _GardenBedCard extends StatelessWidget {
     required this.onDeletePressed,
     required this.onDeletePlantingPressed,
     required this.onEditPlantingPressed,
+    required this.onStatusChanged,
   });
+
+  static const _statusOptions = [
+    'planned',
+    'sown',
+    'transplanted',
+    'growing',
+    'harvesting',
+    'finished',
+    'failed',
+  ];
 
   final GardenBed bed;
   final List<GardenBedPlanting> plantings;
@@ -274,6 +320,7 @@ class _GardenBedCard extends StatelessWidget {
   final VoidCallback onDeletePressed;
   final ValueChanged<GardenBedPlanting> onDeletePlantingPressed;
   final ValueChanged<GardenBedPlanting> onEditPlantingPressed;
+  final void Function(GardenBedPlanting planting, String status) onStatusChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -366,14 +413,59 @@ class _GardenBedCard extends StatelessWidget {
               ...plantings.map(
                 (planting) => ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.eco_outlined),
+                  leading: Icon(_statusIcon(planting.status)),
                   title: Text(planting.cropName),
                   subtitle: Text(_plantingSubtitle(planting)),
                   onTap: () => onEditPlantingPressed(planting),
-                  trailing: IconButton(
-                    tooltip: 'Remove crop',
-                    onPressed: () => onDeletePlantingPressed(planting),
-                    icon: const Icon(Icons.close),
+                  trailing: PopupMenuButton<String>(
+                    tooltip: 'Planting actions',
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        onEditPlantingPressed(planting);
+                        return;
+                      }
+
+                      if (value == 'remove') {
+                        onDeletePlantingPressed(planting);
+                        return;
+                      }
+
+                      onStatusChanged(planting, value);
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: ListTile(
+                          leading: Icon(Icons.edit_outlined),
+                          title: Text('Edit details'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      ..._statusOptions.map(
+                        (status) => PopupMenuItem(
+                          value: status,
+                          enabled: status != planting.status,
+                          child: ListTile(
+                            leading: Icon(_statusIcon(status)),
+                            title: Text(_formatValue(status)),
+                            trailing: status == planting.status
+                                ? const Icon(Icons.check)
+                                : null,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'remove',
+                        child: ListTile(
+                          leading: Icon(Icons.delete_outline),
+                          title: Text('Remove crop'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -397,6 +489,19 @@ class _GardenBedCard extends StatelessWidget {
     }
 
     return parts.join(' • ');
+  }
+
+  IconData _statusIcon(String status) {
+    return switch (status) {
+      'planned' => Icons.event_note_outlined,
+      'sown' => Icons.grass_outlined,
+      'transplanted' => Icons.move_down_outlined,
+      'growing' => Icons.eco_outlined,
+      'harvesting' => Icons.shopping_basket_outlined,
+      'finished' => Icons.check_circle_outline,
+      'failed' => Icons.cancel_outlined,
+      _ => Icons.eco_outlined,
+    };
   }
 
   String _formatDate(DateTime date) {

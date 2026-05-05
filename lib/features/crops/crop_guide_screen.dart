@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/plant_icons/generated_plant_icon.dart';
 import '../../data/garden_data_repository.dart';
 import '../../data/models/crop.dart';
 import 'crop_detail_screen.dart';
@@ -161,6 +162,12 @@ class _CropGuideScreenState extends State<CropGuideScreen> {
                 ...filteredCrops.map(
                   (crop) => Card(
                     child: ListTile(
+                      leading: CircleAvatar(
+                        child: GeneratedPlantIcon(
+                          cropName: crop.commonName,
+                          size: 32,
+                        ),
+                      ),
                       title: Text(crop.commonName),
                       subtitle: Text(
                         '${crop.summary}\nSpacing: ${crop.spacingCm} cm • Harvest: ${crop.daysToHarvestMin}-${crop.daysToHarvestMax} days',

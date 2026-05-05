@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/garden_data_repository.dart';
 import '../../data/models/crop.dart';
 import '../../data/models/pest_problem.dart';
+import '../crops/crop_detail_screen.dart';
 
 class PestGuideScreen extends StatefulWidget {
   const PestGuideScreen({super.key});
@@ -212,7 +213,7 @@ class _PestGuideScreenState extends State<PestGuideScreen> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _PestProblemCard(
                       problem: problem,
-                      cropNameById: data.cropNameById,
+                      cropById: data.cropById,
                     ),
                   ),
                 ),
@@ -231,14 +232,14 @@ class _PestGuideScreenState extends State<PestGuideScreen> {
         .where((crop) => affectedCropIds.contains(crop.id))
         .toList(growable: false)
       ..sort((a, b) => a.commonName.compareTo(b.commonName));
-    final cropNameById = {
-      for (final crop in crops) crop.id: crop.commonName,
+    final cropById = {
+      for (final crop in crops) crop.id: crop,
     };
 
     return _PestGuideData(
       problems: problems,
       crops: affectedCrops,
-      cropNameById: cropNameById,
+      cropById: cropById,
     );
   }
 }
@@ -246,11 +247,11 @@ class _PestGuideScreenState extends State<PestGuideScreen> {
 class _PestProblemCard extends StatelessWidget {
   const _PestProblemCard({
     required this.problem,
-    required this.cropNameById,
+    required this.cropById,
   });
 
   final PestProblem problem;
-  final Map<String, String> cropNameById;
+  final Map<String, Crop> cropById;
 
   @override
   Widget build(BuildContext context) {
@@ -269,10 +270,24 @@ class _PestProblemCard extends StatelessWidget {
                 runSpacing: 8,
                 children: problem.commonCrops
                     .map(
-                      (cropId) => Chip(
-                        avatar: const Icon(Icons.eco_outlined, size: 18),
-                        label: Text(cropNameById[cropId] ?? _formatValue(cropId)),
-                      ),
+                      (cropId) {
+                        final crop = cropById[cropId];
+                        final label = crop?.commonName ?? _formatValue(cropId);
+
+                        return ActionChip(
+                          avatar: const Icon(Icons.eco_outlined, size: 18),
+                          label: Text(label),
+                          onPressed: crop == null
+                              ? null
+                              : () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => CropDetailScreen(crop: crop),
+                                    ),
+                                  );
+                                },
+                        );
+                      },
                     )
                     .toList(growable: false),
               ),
@@ -364,10 +379,10 @@ class _PestGuideData {
   const _PestGuideData({
     required this.problems,
     required this.crops,
-    required this.cropNameById,
+    required this.cropById,
   });
 
   final List<PestProblem> problems;
   final List<Crop> crops;
-  final Map<String, String> cropNameById;
+  final Map<String, Crop> cropById;
 }

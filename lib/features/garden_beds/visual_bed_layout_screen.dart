@@ -111,8 +111,8 @@ class _VisualBedLayoutScreenState extends State<VisualBedLayoutScreen> {
                 zones: displayZones,
                 title: usingGenerated ? 'Suggested garden design' : 'Current garden design',
                 description: usingGenerated
-                    ? 'Generated plants are shown as individual SVG crop icons, scaled down by spacing and planting density.'
-                    : 'Saved plant counts are shown as individual SVG crop icons, scaled to avoid visual overstatement.',
+                    ? 'Generated plants are shown as individual SVG crop icons, sized large enough to remain recognisable.'
+                    : 'Saved plant counts are shown as individual SVG crop icons, not painted dots.',
               ),
               const SizedBox(height: 16),
               _SpacingGuideCard(zones: displayZones),
@@ -264,7 +264,7 @@ class _LayoutHeroCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Preview individual plants using reduced SVG crop icons.',
+                'Preview individual plants using clear SVG crop icons.',
                 style: TextStyle(color: scheme.onPrimaryContainer),
               ),
               const SizedBox(height: 14),
@@ -456,14 +456,12 @@ class _VisualBedCard extends StatelessWidget {
     final rows = (zones.length / columns).ceil();
     final totalPlants = zones.fold<int>(0, (sum, zone) => sum + zone.plantCount.clamp(1, 120));
     final densityScale = totalPlants > 90
-        ? 0.60
+        ? 0.76
         : totalPlants > 60
-            ? 0.70
+            ? 0.82
             : totalPlants > 35
-                ? 0.80
-                : totalPlants > 18
-                    ? 0.90
-                    : 1.0;
+                ? 0.90
+                : 1.0;
 
     for (var zoneIndex = 0; zoneIndex < zones.length; zoneIndex++) {
       final zone = zones[zoneIndex];
@@ -476,8 +474,8 @@ class _VisualBedCard extends StatelessWidget {
       final count = zone.plantCount.clamp(1, 120);
       final gridColumns = math.max(1, math.sqrt(count * zoneWidth / zoneHeight).ceil());
       final gridRows = (count / gridColumns).ceil();
-      final spacingBasedSize = (zone.spacingCm / 45 * 20).clamp(12.0, 22.0).toDouble();
-      final iconSize = (spacingBasedSize * densityScale).clamp(10.0, 22.0).toDouble();
+      final spacingBasedSize = (zone.spacingCm / 45 * 28).clamp(20.0, 34.0).toDouble();
+      final iconSize = (spacingBasedSize * densityScale).clamp(18.0, 34.0).toDouble();
 
       for (var i = 0; i < count; i++) {
         final markerColumn = i % gridColumns;
@@ -485,8 +483,8 @@ class _VisualBedCard extends StatelessWidget {
         markers.add(_PlantMarkerData(
           cropName: zone.cropName,
           title: zone.title,
-          xFraction: (zoneLeft + ((markerColumn + 1) / (gridColumns + 1)) * zoneWidth).clamp(0.05, 0.95),
-          yFraction: (zoneTop + ((markerRow + 1) / (gridRows + 1)) * zoneHeight).clamp(0.07, 0.93),
+          xFraction: (zoneLeft + ((markerColumn + 1) / (gridColumns + 1)) * zoneWidth).clamp(0.06, 0.94),
+          yFraction: (zoneTop + ((markerRow + 1) / (gridRows + 1)) * zoneHeight).clamp(0.08, 0.92),
           iconSize: iconSize,
         ));
       }
@@ -587,7 +585,7 @@ class _DesignNoteCard extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.all(16),
         child: Text(
-          'The bed map uses individual reduced SVG crop icons only. It does not draw plant dots or circular markers. Tightly spaced or high-density plantings are scaled down to keep the layout visually accurate without losing icon clarity.',
+          'The bed map now renders plant markers only through GeneratedPlantIcon SVG widgets. There is no dot painter or circular marker layer for crops in this screen. Icons are kept large enough to be recognisable while still reducing size for dense plantings.',
         ),
       ),
     );

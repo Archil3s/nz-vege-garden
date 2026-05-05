@@ -86,6 +86,9 @@ class _WeeklyTasksScreenState extends State<WeeklyTasksScreen> {
           final completedCount = data!.tasks
               .where((task) => data.completedTaskIds.contains(task.id))
               .length;
+          final successionCount = tasks
+              .where((task) => task.taskType == 'succession')
+              .length;
 
           return ListView.separated(
             padding: const EdgeInsets.all(16),
@@ -96,6 +99,7 @@ class _WeeklyTasksScreenState extends State<WeeklyTasksScreen> {
                 return _TaskProgressCard(
                   completedCount: completedCount,
                   totalCount: tasks.length,
+                  successionCount: successionCount,
                   weekKey: data.weekKey,
                   onClearPressed: completedCount == 0 ? null : _clearWeek,
                 );
@@ -121,12 +125,14 @@ class _TaskProgressCard extends StatelessWidget {
   const _TaskProgressCard({
     required this.completedCount,
     required this.totalCount,
+    required this.successionCount,
     required this.weekKey,
     required this.onClearPressed,
   });
 
   final int completedCount;
   final int totalCount;
+  final int successionCount;
   final String weekKey;
   final VoidCallback? onClearPressed;
 
@@ -161,10 +167,20 @@ class _TaskProgressCard extends StatelessWidget {
             Text('$completedCount of $totalCount tasks completed'),
             const SizedBox(height: 8),
             LinearProgressIndicator(value: progress),
-            const SizedBox(height: 8),
-            Text(
-              'Week starting $weekKey',
-              style: Theme.of(context).textTheme.bodySmall,
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(
+                  avatar: const Icon(Icons.repeat_outlined, size: 18),
+                  label: Text('Succession: $successionCount'),
+                ),
+                Chip(
+                  avatar: const Icon(Icons.calendar_today_outlined, size: 18),
+                  label: Text('Week $weekKey'),
+                ),
+              ],
             ),
           ],
         ),
@@ -187,6 +203,7 @@ class _TaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = completed ? Theme.of(context).disabledColor : null;
+    final isSuccession = task.taskType == 'succession';
 
     return Card(
       child: InkWell(
@@ -207,6 +224,10 @@ class _TaskCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (isSuccession) ...[
+                      const _SuccessionBadge(),
+                      const SizedBox(height: 8),
+                    ],
                     Text(
                       task.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -229,7 +250,7 @@ class _TaskCard extends StatelessWidget {
                           label: Text('Priority ${task.priority}'),
                         ),
                         Chip(
-                          avatar: const Icon(Icons.category_outlined, size: 18),
+                          avatar: Icon(_iconForTaskType(task.taskType), size: 18),
                           label: Text(_formatValue(task.taskType)),
                         ),
                         if (completed)
@@ -257,6 +278,7 @@ class _TaskCard extends StatelessWidget {
       'support' => Icons.signpost_outlined,
       'mulch' => Icons.grass_outlined,
       'prepare_bed' => Icons.yard_outlined,
+      'succession' => Icons.repeat_outlined,
       _ => Icons.check_circle_outline,
     };
   }
@@ -266,6 +288,27 @@ class _TaskCard extends StatelessWidget {
         .split('_')
         .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
+  }
+}
+
+class _SuccessionBadge extends StatelessWidget {
+  const _SuccessionBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          'Succession planting',
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
+      ),
+    );
   }
 }
 

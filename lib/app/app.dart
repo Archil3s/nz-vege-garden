@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../features/calendar/crop_calendar_screen.dart';
 import '../features/crops/crop_guide_screen.dart';
-import '../features/garden_beds/garden_beds_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/insights/insights_screen.dart';
 import '../features/pests/pest_guide_screen.dart';
@@ -37,7 +36,6 @@ class _AppShellState extends State<AppShell> {
   List<Widget> get _screens => [
         const HomeScreen(),
         const InsightsScreen(),
-        const GardenBedsScreen(),
         _MoreScreen(onOpenSection: _openSection),
       ];
 
@@ -70,11 +68,6 @@ class _AppShellState extends State<AppShell> {
               icon: Icon(Icons.insights_outlined),
               selectedIcon: Icon(Icons.insights),
               label: 'Insights',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.yard_outlined),
-              selectedIcon: Icon(Icons.yard),
-              label: 'Beds',
             ),
             NavigationDestination(
               icon: Icon(Icons.more_horiz_outlined),

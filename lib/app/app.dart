@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../features/calendar/crop_calendar_screen.dart';
 import '../features/crops/crop_guide_screen.dart';
 import '../features/garden_beds/garden_beds_screen.dart';
 import '../features/home/home_screen.dart';
@@ -35,6 +36,7 @@ class _AppShellState extends State<AppShell> {
   static const _screens = <Widget>[
     HomeScreen(),
     CropGuideScreen(),
+    CropCalendarScreen(),
     GardenBedsScreen(),
     WeeklyTasksScreen(),
     PestGuideScreen(),
@@ -60,6 +62,11 @@ class _AppShellState extends State<AppShell> {
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book),
             label: 'Crops',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
+            label: 'Calendar',
           ),
           NavigationDestination(
             icon: Icon(Icons.yard_outlined),

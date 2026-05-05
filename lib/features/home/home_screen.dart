@@ -9,6 +9,10 @@ import '../../data/models/crop.dart';
 import '../../data/models/garden_bed.dart';
 import '../../data/models/garden_bed_planting.dart';
 import '../../data/models/nz_region.dart';
+import '../calendar/crop_calendar_screen.dart';
+import '../crops/crop_guide_screen.dart';
+import '../garden_beds/garden_beds_screen.dart';
+import '../tasks/weekly_tasks_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -76,6 +80,8 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               _SummaryCards(data: data),
+              const SizedBox(height: 16),
+              const _QuickActionsCard(),
               const SizedBox(height: 16),
               _BestForSetupCard(
                 crops: data.recommendedCrops,
@@ -326,6 +332,102 @@ class _SummaryCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _QuickActionsCard extends StatelessWidget {
+  const _QuickActionsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.touch_app_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Quick actions',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 2.45,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              children: [
+                _QuickActionButton(
+                  icon: Icons.yard_outlined,
+                  label: 'Beds',
+                  onTap: () => _open(context, const GardenBedsScreen()),
+                ),
+                _QuickActionButton(
+                  icon: Icons.menu_book_outlined,
+                  label: 'Crop guide',
+                  onTap: () => _open(context, const CropGuideScreen()),
+                ),
+                _QuickActionButton(
+                  icon: Icons.calendar_month_outlined,
+                  label: 'Calendar',
+                  onTap: () => _open(context, const CropCalendarScreen()),
+                ),
+                _QuickActionButton(
+                  icon: Icons.checklist_outlined,
+                  label: 'Tasks',
+                  onTap: () => _open(context, const WeeklyTasksScreen()),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _open(BuildContext context, Widget screen) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+}
+
+class _QuickActionButton extends StatelessWidget {
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      style: OutlinedButton.styleFrom(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
       ),
     );
   }

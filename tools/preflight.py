@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--no-flutter",
         action="store_true",
-        help="Only run Python/data checks and skip all Flutter commands.",
+        help="Only run Python/data/static checks and skip all Flutter commands.",
     )
     parser.add_argument(
         "--skip-build",
@@ -83,9 +83,10 @@ def main() -> int:
 
     try:
         run([sys.executable, "tools/validate_data.py"])
+        run([sys.executable, "tools/static_sanity_check.py"])
 
         if args.no_flutter:
-            print("\nPreflight passed for Python/data checks. Flutter checks skipped.")
+            print("\nPreflight passed for Python data/static checks. Flutter checks skipped.")
             return 0
 
         if not require_executable("flutter"):

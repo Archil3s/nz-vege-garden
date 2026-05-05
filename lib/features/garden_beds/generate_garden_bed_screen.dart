@@ -30,6 +30,8 @@ class _GenerateGardenBedScreenState extends State<GenerateGardenBedScreen> {
   final _widthController = TextEditingController(text: '120');
 
   _GeneratorGoal _goal = _GeneratorGoal.beginner;
+  _PlantingMethodFilter _methodFilter = _PlantingMethodFilter.both;
+  _AirflowPreference _airflow = _AirflowPreference.balanced;
   int _peopleToFeed = 2;
   String _layoutStyle = 'companion';
   bool _isSaving = false;
@@ -74,10 +76,10 @@ class _GenerateGardenBedScreenState extends State<GenerateGardenBedScreen> {
       lengthCm: draft.lengthCm,
       widthCm: draft.widthCm,
       sunExposure: 'full_sun',
-      windExposure: 'moderate',
+      windExposure: draft.airflow.storageValue,
       layoutStyle: _layoutStyle,
       notes:
-          'Generated for ${_goal.label.toLowerCase()} • ${draft.peopleToFeed} ${draft.peopleToFeed == 1 ? 'person' : 'people'} • ${draft.monthLabel}.',
+          'Live seasonal plan for ${_goal.label.toLowerCase()} • ${draft.peopleToFeed} ${draft.peopleToFeed == 1 ? 'person' : 'people'} • ${draft.monthLabel} • ${draft.airflow.label} airflow • ${draft.methodLabel}.',
       now: now,
     );
 
@@ -96,7 +98,8 @@ class _GenerateGardenBedScreenState extends State<GenerateGardenBedScreen> {
         plantedDate: now,
         expectedHarvestStartDate: expectedHarvestStartDate,
         expectedHarvestEndDate: expectedHarvestEndDate,
-        notes: 'Generated suggestion: ${item.reason}',
+        notes:
+            'Generated suggestion: ${item.reason}. Layout role: ${item.layoutRole}. ${item.airflowNote}',
         now: now.add(Duration(microseconds: draft.items.indexOf(item))),
       );
     }).toList(growable: false);
@@ -151,13 +154,15 @@ class _GenerateGardenBedScreenState extends State<GenerateGardenBedScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
             children: [
               Text(
-                'Build a seasonal bed automatically',
+                'Live seasonal bed planner',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),
               const Text(
-                'Choose a goal and size. The app picks seasonal crops, estimates plant counts, creates the bed, and opens the design canvas.',
+                'Uses the current month, saved NZ region, sow/transplant timing, family size, spacing, and airflow to suggest a practical planted bed.',
               ),
+              const SizedBox(height: 16),
+              _LiveSeasonCard(draft: draft),
               const SizedBox(height: 16),
               TextField(
                 controller: _nameController,
@@ -200,25 +205,19 @@ class _GenerateGardenBedScreenState extends State<GenerateGardenBedScreen> {
                 onChanged: (goal) => setState(() => _goal = goal),
               ),
               const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('People to feed', style: Theme.of(context).textTheme.titleLarge),
-                      Slider(
-                        value: _peopleToFeed.toDouble(),
-                        min: 1,
-                        max: 6,
-                        divisions: 5,
-                        label: _peopleToFeed.toString(),
-                        onChanged: (value) => setState(() => _peopleToFeed = value.round()),
-                      ),
-                      Text('Target: $_peopleToFeed ${_peopleToFeed == 1 ? 'person' : 'people'}'),
-                    ],
-                  ),
-                ),
+              _MethodSelector(
+                selectedFilter: _methodFilter,
+                onChanged: (filter) => setState(() => _methodFilter = filter),
+              ),
+              const SizedBox(height: 16),
+              _FamilySizeCard(
+                peopleToFeed: _peopleToFeed,
+                onChanged: (value) => setState(() => _peopleToFeed = value),
+              ),
+              const SizedBox(height: 16),
+              _AirflowSelector(
+                airflow: _airflow,
+                onChanged: (value) => setState(() => _airflow = value),
               ),
               const SizedBox(height: 16),
               _LayoutStyleSelector(
@@ -255,6 +254,7 @@ class _GenerateGardenBedScreenState extends State<GenerateGardenBedScreen> {
         .where((rule) => rule.appliesToMonth(now.month))
         .where((rule) => rule.appliesToRegion(data.regionId))
         .where((rule) => cropById.containsKey(rule.cropId))
+        .where(_methodFilter.allows)
         .toList(growable: false);
 
     final scored = seasonalRules.map((rule) {
@@ -272,23 +272,27 @@ class _GenerateGardenBedScreenState extends State<GenerateGardenBedScreen> {
             : scoreComparison;
       });
 
-    final targetCrops = _peopleToFeed <= 2
-        ? 3
-        : _peopleToFeed <= 4
-            ? 4
-            : 5;
-    final selected = scored.take(targetCrops).toList(growable: false);
+    final targetCrops = _targetCropCount(areaSquareMeters);
+    final selected = _balancedCropSelection(scored, targetCrops);
+    final utilisation = _spaceUtilisationFactor();
     final zoneArea = selected.isEmpty ? 0 : areaSquareMeters / selected.length;
+    final familyMultiplier = (0.82 + _peopleToFeed * 0.08).clamp(0.9, 1.28).toDouble();
 
-    final items = selected.map((item) {
+    final items = selected.asMap().entries.map((entry) {
+      final index = entry.key;
+      final item = entry.value;
       final spacingMeters = math.max(0.1, item.crop.spacingCm / 100);
       final plantArea = spacingMeters * spacingMeters;
-      final count = (zoneArea / plantArea).floor().clamp(1, 80);
+      final baseCount = zoneArea / plantArea;
+      final count = (baseCount * utilisation * familyMultiplier).floor().clamp(1, 80);
+
       return _GeneratedBedItem(
         crop: item.crop,
         method: item.rule.method,
         plantCount: count,
         reason: _reasonFor(item.crop, item.rule),
+        layoutRole: _layoutRoleFor(index, selected.length, item.crop),
+        airflowNote: _airflowNoteFor(item.crop),
       );
     }).toList(growable: false);
 
@@ -297,8 +301,60 @@ class _GenerateGardenBedScreenState extends State<GenerateGardenBedScreen> {
       widthCm: widthCm,
       peopleToFeed: _peopleToFeed,
       monthLabel: _monthName(now.month),
+      methodLabel: _methodFilter.label,
+      airflow: _airflow,
+      utilisationPercent: (utilisation * 100).round(),
+      availableSeasonalCropCount: seasonalRules.length,
       items: items,
     );
+  }
+
+  int _targetCropCount(double areaSquareMeters) {
+    final byFamilySize = _peopleToFeed <= 2
+        ? 3
+        : _peopleToFeed <= 4
+            ? 4
+            : 5;
+    final byArea = areaSquareMeters < 1.2
+        ? 3
+        : areaSquareMeters < 2.6
+            ? 4
+            : 5;
+    return math.min(byFamilySize, byArea);
+  }
+
+  List<_ScoredGeneratorCrop> _balancedCropSelection(
+    List<_ScoredGeneratorCrop> scored,
+    int targetCrops,
+  ) {
+    final selected = <_ScoredGeneratorCrop>[];
+    final usedCategories = <String>{};
+
+    for (final item in scored) {
+      if (selected.length >= targetCrops) break;
+      if (usedCategories.contains(item.crop.category) && selected.length < targetCrops - 1) {
+        continue;
+      }
+      selected.add(item);
+      usedCategories.add(item.crop.category);
+    }
+
+    for (final item in scored) {
+      if (selected.length >= targetCrops) break;
+      if (!selected.contains(item)) {
+        selected.add(item);
+      }
+    }
+
+    return selected;
+  }
+
+  double _spaceUtilisationFactor() {
+    return switch (_airflow) {
+      _AirflowPreference.open => 0.68,
+      _AirflowPreference.balanced => 0.82,
+      _AirflowPreference.intensive => 0.95,
+    };
   }
 
   int _scoreCrop(Crop crop, PlantingRule rule) {
@@ -307,8 +363,11 @@ class _GenerateGardenBedScreenState extends State<GenerateGardenBedScreen> {
     if (crop.daysToHarvestMax <= 60) score += _goal == _GeneratorGoal.quickHarvest ? 5 : 2;
     if (crop.category == 'herb') score += _goal == _GeneratorGoal.herbsAndSalad ? 5 : 1;
     if (crop.containerFriendly) score += _goal == _GeneratorGoal.smallSpace ? 5 : 1;
-    if (rule.method == 'direct_sow') score += 2;
+    if (rule.method == 'direct_sow') score += _methodFilter == _PlantingMethodFilter.directSow ? 5 : 2;
+    if (rule.method == 'transplant') score += _methodFilter == _PlantingMethodFilter.transplant ? 5 : 2;
     if (!crop.frostTender) score += 1;
+    if (_airflow == _AirflowPreference.open && crop.spacingCm >= 35) score += 2;
+    if (_airflow == _AirflowPreference.intensive && crop.spacingCm <= 30) score += 2;
     return score;
   }
 
@@ -319,6 +378,74 @@ class _GenerateGardenBedScreenState extends State<GenerateGardenBedScreen> {
     if (crop.containerFriendly) parts.add('space efficient');
     parts.add(rule.method == 'transplant' ? 'transplant now' : 'sow direct now');
     return parts.join(', ');
+  }
+
+  String _layoutRoleFor(int index, int total, Crop crop) {
+    if (total == 1) return 'main crop block';
+    if (index == 0) return 'anchor crop';
+    if (index == total - 1 && crop.spacingCm <= 25) return 'edge filler';
+    if (crop.category == 'herb') return 'edge companion';
+    if (crop.spacingCm >= 45) return 'airflow crop';
+    return 'supporting crop block';
+  }
+
+  String _airflowNoteFor(Crop crop) {
+    return switch (_airflow) {
+      _AirflowPreference.open =>
+        'Open spacing selected: keep extra room around ${crop.commonName.toLowerCase()} for airflow and access.',
+      _AirflowPreference.balanced =>
+        'Balanced spacing selected: leaves enough room for growth while using the bed efficiently.',
+      _AirflowPreference.intensive =>
+        'Intensive spacing selected: watch watering, feeding, and airflow as the bed fills.',
+    };
+  }
+}
+
+class _LiveSeasonCard extends StatelessWidget {
+  const _LiveSeasonCard({required this.draft});
+
+  final _GeneratedBedDraft draft;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.sensors_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Live seasonal filter',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(label: Text(draft.monthLabel)),
+                Chip(label: Text(draft.methodLabel)),
+                Chip(label: Text('${draft.availableSeasonalCropCount} seasonal options')),
+                Chip(label: Text('${draft.utilisationPercent}% spacing use')),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'The plan updates from local seasonal data whenever you change method, family size, dimensions, or airflow.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -349,6 +476,121 @@ class _GoalSelector extends StatelessWidget {
                 );
               }).toList(growable: false),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MethodSelector extends StatelessWidget {
+  const _MethodSelector({required this.selectedFilter, required this.onChanged});
+
+  final _PlantingMethodFilter selectedFilter;
+  final ValueChanged<_PlantingMethodFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('What can go in now', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            SegmentedButton<_PlantingMethodFilter>(
+              selected: {selectedFilter},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) => onChanged(selection.first),
+              segments: const [
+                ButtonSegment(
+                  value: _PlantingMethodFilter.both,
+                  icon: Icon(Icons.all_inclusive_outlined),
+                  label: Text('Both'),
+                ),
+                ButtonSegment(
+                  value: _PlantingMethodFilter.directSow,
+                  icon: Icon(Icons.grass_outlined),
+                  label: Text('Sow'),
+                ),
+                ButtonSegment(
+                  value: _PlantingMethodFilter.transplant,
+                  icon: Icon(Icons.move_down_outlined),
+                  label: Text('Plant'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(selectedFilter.description, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FamilySizeCard extends StatelessWidget {
+  const _FamilySizeCard({required this.peopleToFeed, required this.onChanged});
+
+  final int peopleToFeed;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Family size target', style: Theme.of(context).textTheme.titleLarge),
+            Slider(
+              value: peopleToFeed.toDouble(),
+              min: 1,
+              max: 6,
+              divisions: 5,
+              label: peopleToFeed.toString(),
+              onChanged: (value) => onChanged(value.round()),
+            ),
+            Text('Target: $peopleToFeed ${peopleToFeed == 1 ? 'person' : 'people'}'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AirflowSelector extends StatelessWidget {
+  const _AirflowSelector({required this.airflow, required this.onChanged});
+
+  final _AirflowPreference airflow;
+  final ValueChanged<_AirflowPreference> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Spacing and airflow', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _AirflowPreference.values.map((value) {
+                return ChoiceChip(
+                  avatar: Icon(value.icon, size: 18),
+                  label: Text(value.label),
+                  selected: airflow == value,
+                  onSelected: (_) => onChanged(value),
+                );
+              }).toList(growable: false),
+            ),
+            const SizedBox(height: 8),
+            Text(airflow.description, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),
@@ -397,6 +639,8 @@ class _DraftPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final area = draft.lengthCm * draft.widthCm / 10000;
+    final directSowCount = draft.items.where((item) => item.method == 'direct_sow').length;
+    final transplantCount = draft.items.where((item) => item.method == 'transplant').length;
 
     return Card(
       child: Padding(
@@ -409,7 +653,7 @@ class _DraftPreviewCard extends StatelessWidget {
                 const Icon(Icons.preview_outlined),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('Generated preview', style: Theme.of(context).textTheme.titleLarge),
+                  child: Text('Generated layout plan', style: Theme.of(context).textTheme.titleLarge),
                 ),
               ],
             ),
@@ -420,7 +664,10 @@ class _DraftPreviewCard extends StatelessWidget {
               children: [
                 Chip(label: Text('${draft.lengthCm} × ${draft.widthCm} cm')),
                 Chip(label: Text('${area.toStringAsFixed(2)} m²')),
-                Chip(label: Text(draft.monthLabel)),
+                Chip(label: Text('${draft.peopleToFeed} people')),
+                Chip(label: Text('Sow: $directSowCount')),
+                Chip(label: Text('Plant: $transplantCount')),
+                Chip(label: Text(draft.airflow.label)),
               ],
             ),
             const SizedBox(height: 12),
@@ -431,8 +678,10 @@ class _DraftPreviewCard extends StatelessWidget {
                 (item) => ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(child: Text(item.plantCount.toString())),
-                  title: Text(item.crop.commonName),
-                  subtitle: Text('${_formatMethod(item.method)} • ${item.reason}'),
+                  title: Text('${item.crop.commonName} × ${item.plantCount}'),
+                  subtitle: Text(
+                    '${_formatMethod(item.method)} • ${item.layoutRole}\n${item.reason}\n${item.airflowNote}',
+                  ),
                 ),
               ),
           ],
@@ -443,8 +692,8 @@ class _DraftPreviewCard extends StatelessWidget {
 
   String _formatMethod(String method) {
     return switch (method) {
-      'transplant' => 'Transplant',
-      'direct_sow' => 'Sow direct',
+      'transplant' => 'Transplant now',
+      'direct_sow' => 'Direct sow now',
       _ => method,
     };
   }
@@ -464,6 +713,10 @@ class _GeneratedBedDraft {
     required this.widthCm,
     required this.peopleToFeed,
     required this.monthLabel,
+    required this.methodLabel,
+    required this.airflow,
+    required this.utilisationPercent,
+    required this.availableSeasonalCropCount,
     required this.items,
   });
 
@@ -471,6 +724,10 @@ class _GeneratedBedDraft {
   final int widthCm;
   final int peopleToFeed;
   final String monthLabel;
+  final String methodLabel;
+  final _AirflowPreference airflow;
+  final int utilisationPercent;
+  final int availableSeasonalCropCount;
   final List<_GeneratedBedItem> items;
 }
 
@@ -480,12 +737,16 @@ class _GeneratedBedItem {
     required this.method,
     required this.plantCount,
     required this.reason,
+    required this.layoutRole,
+    required this.airflowNote,
   });
 
   final Crop crop;
   final String method;
   final int plantCount;
   final String reason;
+  final String layoutRole;
+  final String airflowNote;
 }
 
 class _ScoredGeneratorCrop {
@@ -505,6 +766,38 @@ enum _GeneratorGoal {
   const _GeneratorGoal(this.label);
 
   final String label;
+}
+
+enum _PlantingMethodFilter {
+  both('Direct sow + transplant', 'Uses everything that can be sown or transplanted in the current month.'),
+  directSow('Direct sow only', 'Only uses crops that can be sown directly now.'),
+  transplant('Transplant only', 'Only uses crops that can be planted out as seedlings now.');
+
+  const _PlantingMethodFilter(this.label, this.description);
+
+  final String label;
+  final String description;
+
+  bool allows(PlantingRule rule) {
+    return switch (this) {
+      _PlantingMethodFilter.both => true,
+      _PlantingMethodFilter.directSow => rule.method == 'direct_sow',
+      _PlantingMethodFilter.transplant => rule.method == 'transplant',
+    };
+  }
+}
+
+enum _AirflowPreference {
+  open('Open', 'More spacing for airflow, access, and lower disease pressure.', 'exposed', Icons.air_outlined),
+  balanced('Balanced', 'A practical middle ground between yield, airflow, and easy maintenance.', 'moderate', Icons.tune_outlined),
+  intensive('Intensive', 'Higher plant density for more output. Best if watering and feeding are consistent.', 'sheltered', Icons.density_medium_outlined);
+
+  const _AirflowPreference(this.label, this.description, this.storageValue, this.icon);
+
+  final String label;
+  final String description;
+  final String storageValue;
+  final IconData icon;
 }
 
 String _monthName(int month) {

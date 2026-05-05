@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, Python data validation tooling, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, searchable/filterable crop and pest/problem guides, a working local garden bed planner UI, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, generated weekly task recommendations, and the first local notification foundation.
+The repo now contains the planning documents, expanded bundled seed data, Python data validation tooling, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, searchable/filterable crop and pest/problem guides, a working local garden bed planner UI with editable beds, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, generated weekly task recommendations, and the first local notification foundation.
 
 GitHub Pages preview work has been removed for now. The app will be tested locally on a PC with Flutter tooling.
 
@@ -196,6 +196,35 @@ Implemented:
 - Remove planted crop from a bed
 - Delete bed also removes plantings for that bed
 
+### Garden bed edit flow
+
+Added:
+
+```text
+lib/features/garden_beds/edit_garden_bed_screen.dart
+```
+
+Updated:
+
+```text
+lib/features/garden_beds/garden_beds_screen.dart
+```
+
+Implemented:
+
+- Edit saved garden bed details
+- Edit bed name
+- Edit bed type
+- Edit optional length and width
+- Edit sun exposure
+- Edit wind exposure
+- Edit notes
+- Preserve bed ID and creation date
+- Preserve crops already planted in the bed
+- Refresh bed list after saving edits
+- Added edit icon to garden bed cards
+- Added delete confirmation before removing a bed and its plantings
+
 ### Expanded crop database
 
 Updated:
@@ -375,7 +404,7 @@ Current screens:
 
 - Home: garden dashboard, upcoming harvests, and what-to-plant-now list
 - Crops: searchable/filterable crop guide with detail pages
-- Beds: working garden bed planner with crop planting, harvest estimates, and planting edits
+- Beds: working garden bed planner with bed edits, crop planting, harvest estimates, and planting edits
 - Tasks: generated weekly task recommendations
 - Pests: searchable/filterable offline pest/problem guide
 - Settings: editable local setup screen with reminder toggle
@@ -475,17 +504,18 @@ Implemented:
 
 ## In progress
 
-### Garden bed edit screen
+### Task completion tracking
 
 Goal:
 
-- Let users edit saved bed details instead of deleting/recreating beds
-- Reuse the existing add-bed form where possible
-- Preserve plantings attached to the bed
+- Let users mark generated weekly tasks as done
+- Store completion status locally
+- Reset or scope completion by week
+- Make the Tasks screen more actionable
 
 ## Next planned work
 
-1. Add garden bed edit screen
+1. Add task completion tracking
 2. Test locally on PC
 3. Run `python tools/preflight.py --no-flutter`
 4. Fix any data/static validation issues

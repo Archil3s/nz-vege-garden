@@ -90,6 +90,8 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  RepaintBoundary(child: _HomeQuickAccessPanel(crops: data.plantableCrops)),
+                  const SizedBox(height: 16),
                   RepaintBoundary(child: _SowNowPanel(crops: data.plantableCrops)),
                   const SizedBox(height: 16),
                   RepaintBoundary(child: _SummaryCards(data: data)),
@@ -335,6 +337,113 @@ class _HeroDashboardCard extends StatelessWidget {
   }
 }
 
+class _HomeQuickAccessPanel extends StatelessWidget {
+  const _HomeQuickAccessPanel({required this.crops});
+
+  final List<Crop> crops;
+
+  @override
+  Widget build(BuildContext context) {
+    final firstCrop = crops.isEmpty ? null : crops.first;
+
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 1.15,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      children: [
+        _PriorityAccessCard(
+          asset: 'assets/icons/seedling.svg',
+          title: 'Sow now',
+          subtitle: firstCrop?.commonName ?? 'Open picks',
+          color: HomeScreen._leaf,
+          onTap: () {
+            if (firstCrop == null) {
+              HapticFeedback.selectionClick();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No sowing picks for this month.')),
+              );
+              return;
+            }
+
+            _openCropBottomSheet(context, firstCrop);
+          },
+        ),
+        _PriorityAccessCard(
+          asset: 'assets/icons/pruning_shears.svg',
+          title: 'Pruning',
+          subtitle: 'Trees & shrubs',
+          color: HomeScreen._clay,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PruningGuideScreen()),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _PriorityAccessCard extends StatelessWidget {
+  const _PriorityAccessCard({
+    required this.asset,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String asset;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: HomeScreen._surface,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: color.withOpacity(0.28), width: 1.4),
+            boxShadow: const [
+              BoxShadow(color: Color(0x14000000), blurRadius: 24, offset: Offset(0, 12)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SvgPicture.asset(asset, width: 58, height: 58),
+              const Spacer(),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: HomeScreen._ink,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              _MiniPill(label: subtitle, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SowNowPanel extends StatelessWidget {
   const _SowNowPanel({required this.crops});
 
@@ -394,10 +503,7 @@ class _SowNowButton extends StatelessWidget {
         onTap: () => _openCropBottomSheet(context, crop),
         child: Ink(
           padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
-          decoration: BoxDecoration(
-            color: HomeScreen._leaf,
-            borderRadius: BorderRadius.circular(999),
-          ),
+          decoration: BoxDecoration(color: HomeScreen._leaf, borderRadius: BorderRadius.circular(999)),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -412,10 +518,7 @@ class _SowNowButton extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                crop.commonName,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
-              ),
+              Text(crop.commonName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
             ],
           ),
         ),
@@ -466,16 +569,8 @@ class _PruneSummaryCard extends StatelessWidget {
             children: [
               SvgPicture.asset('assets/icons/pruning_shears.svg', width: 50, height: 50),
               const SizedBox(height: 8),
-              Text(
-                '8',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, color: HomeScreen._ink),
-              ),
-              Text(
-                'Prune guide',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: HomeScreen._muted, fontWeight: FontWeight.w700),
-              ),
+              Text('8', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, color: HomeScreen._ink)),
+              Text('Prune guide', maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: HomeScreen._muted, fontWeight: FontWeight.w700)),
             ],
           ),
         ),
@@ -500,16 +595,8 @@ class _SummaryCard extends StatelessWidget {
         children: [
           SvgPicture.asset(asset, width: 50, height: 50),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, color: HomeScreen._ink),
-          ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: HomeScreen._muted, fontWeight: FontWeight.w700),
-          ),
+          Text(value, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, color: HomeScreen._ink)),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: HomeScreen._muted, fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -526,12 +613,7 @@ class _QuickActionsCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(
-              child: Text(
-                'Pick a path',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -0.4),
-              ),
-            ),
+            Expanded(child: Text('Pick a path', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -0.4))),
             const _MiniPill(label: 'tap cards'),
           ],
         ),
@@ -584,20 +666,12 @@ class _ActionTile extends StatelessWidget {
           child: Ink(
             width: 132,
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: HomeScreen._surface,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: HomeScreen._border),
-              boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SvgPicture.asset(asset, width: 66, height: 66),
-                const SizedBox(height: 10),
-                Text(label, style: const TextStyle(color: HomeScreen._ink, fontSize: 17, fontWeight: FontWeight.w900)),
-              ],
-            ),
+            decoration: BoxDecoration(color: HomeScreen._surface, borderRadius: BorderRadius.circular(28), border: Border.all(color: HomeScreen._border), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))]),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              SvgPicture.asset(asset, width: 66, height: 66),
+              const SizedBox(height: 10),
+              Text(label, style: const TextStyle(color: HomeScreen._ink, fontSize: 17, fontWeight: FontWeight.w900)),
+            ]),
           ),
         ),
       ),
@@ -615,28 +689,15 @@ class _BestForSetupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PrettyCard(
       padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              SvgPicture.asset('assets/icons/seedling.svg', width: 44, height: 44),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Best picks',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -0.4),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (crops.isEmpty)
-            const Text('No strong recommendations found for this month.')
-          else
-            Wrap(spacing: 8, runSpacing: 8, children: crops.map((crop) => _CropChip(crop: crop)).toList()),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          SvgPicture.asset('assets/icons/seedling.svg', width: 44, height: 44),
+          const SizedBox(width: 12),
+          Expanded(child: Text('Best picks', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -0.4))),
+        ]),
+        const SizedBox(height: 12),
+        if (crops.isEmpty) const Text('No strong recommendations found for this month.') else Wrap(spacing: 8, runSpacing: 8, children: crops.map((crop) => _CropChip(crop: crop)).toList()),
+      ]),
     );
   }
 }
@@ -656,14 +717,11 @@ class _CropChip extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
           decoration: BoxDecoration(color: HomeScreen._mint, borderRadius: BorderRadius.circular(999)),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _PlantBadge(label: crop.commonName, size: 30),
-              const SizedBox(width: 7),
-              Text(crop.commonName, style: const TextStyle(color: HomeScreen._leafDark, fontWeight: FontWeight.w900)),
-            ],
-          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            _PlantBadge(label: crop.commonName, size: 30),
+            const SizedBox(width: 7),
+            Text(crop.commonName, style: const TextStyle(color: HomeScreen._leafDark, fontWeight: FontWeight.w900)),
+          ]),
         ),
       ),
     );
@@ -686,27 +744,14 @@ class _CropTapCard extends StatelessWidget {
           child: Ink(
             width: 132,
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: HomeScreen._surface,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: HomeScreen._border),
-              boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const _SvgIconBox(asset: 'assets/icons/seedling.svg', size: 58),
-                const SizedBox(height: 10),
-                Text(
-                  crop.commonName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: HomeScreen._ink, fontWeight: FontWeight.w900, fontSize: 16),
-                ),
-                const SizedBox(height: 7),
-                if (crop.frostTender) const _MiniPill(label: 'frost', color: HomeScreen._clay) else const _MiniPill(label: 'hardy'),
-              ],
-            ),
+            decoration: BoxDecoration(color: HomeScreen._surface, borderRadius: BorderRadius.circular(28), border: Border.all(color: HomeScreen._border), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))]),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const _SvgIconBox(asset: 'assets/icons/seedling.svg', size: 58),
+              const SizedBox(height: 10),
+              Text(crop.commonName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: HomeScreen._ink, fontWeight: FontWeight.w900, fontSize: 16)),
+              const SizedBox(height: 7),
+              if (crop.frostTender) const _MiniPill(label: 'frost', color: HomeScreen._clay) else const _MiniPill(label: 'hardy'),
+            ]),
           ),
         ),
       ),
@@ -723,61 +768,29 @@ class _CropBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const _SvgIconBox(asset: 'assets/icons/seedling.svg', size: 64),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(crop.commonName, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(crop.summary),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _MiniPill(label: '${crop.spacingCm}cm'),
-              _MiniPill(label: '${crop.daysToHarvestMin}-${crop.daysToHarvestMax} days'),
-              if (crop.containerFriendly) const _MiniPill(label: 'container'),
-              if (crop.beginnerFriendly) const _MiniPill(label: 'easy'),
-              if (crop.frostTender) const _MiniPill(label: 'frost tender', color: HomeScreen._clay),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add later'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.close),
-                  label: const Text('Close'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const _SvgIconBox(asset: 'assets/icons/seedling.svg', size: 64),
+          const SizedBox(width: 14),
+          Expanded(child: Text(crop.commonName, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900))),
+        ]),
+        const SizedBox(height: 14),
+        Text(crop.summary),
+        const SizedBox(height: 18),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          _MiniPill(label: '${crop.spacingCm}cm'),
+          _MiniPill(label: '${crop.daysToHarvestMin}-${crop.daysToHarvestMax} days'),
+          if (crop.containerFriendly) const _MiniPill(label: 'container'),
+          if (crop.beginnerFriendly) const _MiniPill(label: 'easy'),
+          if (crop.frostTender) const _MiniPill(label: 'frost tender', color: HomeScreen._clay),
+        ]),
+        const SizedBox(height: 18),
+        Row(children: [
+          Expanded(child: FilledButton.icon(onPressed: () { HapticFeedback.selectionClick(); Navigator.pop(context); }, icon: const Icon(Icons.add), label: const Text('Add later'))),
+          const SizedBox(width: 10),
+          Expanded(child: OutlinedButton.icon(onPressed: () { HapticFeedback.selectionClick(); Navigator.pop(context); }, icon: const Icon(Icons.close), label: const Text('Close'))),
+        ]),
+      ]),
     );
   }
 }
@@ -792,12 +805,7 @@ class _PrettyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: padding,
-      decoration: BoxDecoration(
-        color: HomeScreen._surface,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: HomeScreen._border),
-        boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))],
-      ),
+      decoration: BoxDecoration(color: HomeScreen._surface, borderRadius: BorderRadius.circular(28), border: Border.all(color: HomeScreen._border), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))]),
       child: child,
     );
   }
@@ -833,10 +841,7 @@ class _PlantBadge extends StatelessWidget {
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [HomeScreen._mint, Color(0xFFD4E5BE)]),
-        borderRadius: BorderRadius.circular(size * 0.36),
-      ),
+      decoration: BoxDecoration(gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [HomeScreen._mint, Color(0xFFD4E5BE)]), borderRadius: BorderRadius.circular(size * 0.36)),
       child: Text(initial, style: TextStyle(color: HomeScreen._leaf, fontSize: size * 0.38, fontWeight: FontWeight.w900)),
     );
   }
@@ -864,19 +869,12 @@ class _GlassPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.20)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 7),
-          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
-        ],
-      ),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(999), border: Border.all(color: Colors.white.withOpacity(0.20))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: Colors.white, size: 16),
+        const SizedBox(width: 7),
+        Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+      ]),
     );
   }
 }

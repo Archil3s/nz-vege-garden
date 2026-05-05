@@ -12,102 +12,115 @@ import '../tasks/weekly_tasks_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
+  static const _canvas = Color(0xFFF8F3E8);
+  static const _surface = Color(0xFFFFFCF5);
+  static const _ink = Color(0xFF172D22);
+  static const _muted = Color(0xFF66736A);
+  static const _leaf = Color(0xFF2F724B);
+  static const _leafDark = Color(0xFF17452F);
+  static const _moss = Color(0xFF8BA766);
+  static const _mint = Color(0xFFE7F0DB);
+  static const _clay = Color(0xFFC4793D);
+  static const _border = Color(0xFFE7DFCE);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('NZ Vege Garden'),
+        title: const Text('NZ Veg Garden'),
+        backgroundColor: Colors.transparent,
       ),
-      body: FutureBuilder<_HomeData>(
-        future: _loadHomeData(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Stack(
+        children: [
+          const Positioned.fill(child: ColoredBox(color: _canvas)),
+          Positioned(
+            top: -120,
+            right: -120,
+            child: _SoftCircle(color: _mint.withOpacity(0.95), size: 270),
+          ),
+          Positioned(
+            top: 250,
+            left: -150,
+            child: _SoftCircle(color: const Color(0xFFF4C86A).withOpacity(0.22), size: 290),
+          ),
+          FutureBuilder<_HomeData>(
+            future: _loadHomeData(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text('Could not load home data: ${snapshot.error}'),
-              ),
-            );
-          }
-
-          final data = snapshot.data;
-          if (data == null) {
-            return const Center(child: Text('No home data found.'));
-          }
-
-          final regionName = data.selectedRegion?.name ?? 'Unknown region';
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
-            children: [
-              Text(
-                'Garden dashboard',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _SetupChip(
-                    icon: Icons.place_outlined,
-                    label: regionName,
-                  ),
-                  _SetupChip(
-                    icon: Icons.ac_unit_outlined,
-                    label: 'Frost: ${_formatValue(data.settings.frostRisk)}',
-                  ),
-                  _SetupChip(
-                    icon: Icons.air_outlined,
-                    label: 'Wind: ${_formatValue(data.settings.windExposure)}',
-                  ),
-                  _SetupChip(
-                    icon: Icons.yard_outlined,
-                    label: _formatValue(data.settings.gardenType),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _SummaryCards(data: data),
-              const SizedBox(height: 16),
-              const _QuickActionsCard(),
-              const SizedBox(height: 16),
-              _BestForSetupCard(
-                crops: data.recommendedCrops,
-                settings: data.settings,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'What to plant now',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              if (data.plantableCrops.isEmpty)
-                const Card(
+              if (snapshot.hasError) {
+                return Center(
                   child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('No matching crops found for this month.'),
+                    padding: const EdgeInsets.all(24),
+                    child: Text('Could not load home data: ${snapshot.error}'),
                   ),
-                )
-              else
-                ...data.plantableCrops.take(8).map(
-                  (crop) => Card(
-                    child: ListTile(
-                      title: Text(crop.commonName),
-                      subtitle: Text(crop.summary),
-                      trailing: crop.frostTender
-                          ? const Icon(Icons.ac_unit, semanticLabel: 'Frost tender')
-                          : null,
-                    ),
-                  ),
+                );
+              }
+
+              final data = snapshot.data;
+              if (data == null) {
+                return const Center(child: Text('No home data found.'));
+              }
+
+              final regionName = data.selectedRegion?.name ?? 'Unknown region';
+
+              return ListView(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  MediaQuery.paddingOf(context).top + 72,
+                  16,
+                  118,
                 ),
-            ],
-          );
-        },
+                children: [
+                  _HeroDashboardCard(
+                    regionName: regionName,
+                    data: data,
+                    formatValue: _formatValue,
+                  ),
+                  const SizedBox(height: 16),
+                  _SummaryCards(data: data),
+                  const SizedBox(height: 16),
+                  const _QuickActionsCard(),
+                  const SizedBox(height: 16),
+                  _BestForSetupCard(
+                    crops: data.recommendedCrops,
+                    settings: data.settings,
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Plant now',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.3,
+                              ),
+                        ),
+                      ),
+                      _MiniPill(label: '${data.plantableCrops.length} options'),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (data.plantableCrops.isEmpty)
+                    const _PrettyCard(
+                      child: Text('No matching crops found for this month.'),
+                    )
+                  else
+                    ...data.plantableCrops.take(8).map(
+                          (crop) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _CropPreviewCard(crop: crop),
+                          ),
+                        ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -206,21 +219,126 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _SetupChip extends StatelessWidget {
-  const _SetupChip({
-    required this.icon,
-    required this.label,
+class _HeroDashboardCard extends StatelessWidget {
+  const _HeroDashboardCard({
+    required this.regionName,
+    required this.data,
+    required this.formatValue,
   });
 
-  final IconData icon;
-  final String label;
+  final String regionName;
+  final _HomeData data;
+  final String Function(String) formatValue;
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      avatar: Icon(icon, size: 18),
-      label: Text(label),
-      visualDensity: VisualDensity.compact,
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(34),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x24172D22),
+            blurRadius: 32,
+            offset: Offset(0, 18),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(34),
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      HomeScreen._leafDark,
+                      HomeScreen._leaf,
+                      HomeScreen._moss,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned.fill(child: CustomPaint(painter: _LeafPatternPainter())),
+            Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _GlassPill(icon: Icons.place_outlined, label: regionName),
+                            const SizedBox(height: 18),
+                            const Text(
+                              'Garden\ndashboard',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 34,
+                                height: 0.96,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'A clearer weekly view of what matters now.',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.78),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.17),
+                          borderRadius: BorderRadius.circular(26),
+                          border: Border.all(color: Colors.white.withOpacity(0.24)),
+                        ),
+                        child: const Icon(
+                          Icons.eco_outlined,
+                          color: Color(0xFFFFE7A1),
+                          size: 36,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _GlassPill(
+                        icon: Icons.ac_unit_outlined,
+                        label: 'Frost ${formatValue(data.settings.frostRisk)}',
+                      ),
+                      _GlassPill(
+                        icon: Icons.air_outlined,
+                        label: 'Wind ${formatValue(data.settings.windExposure)}',
+                      ),
+                      _GlassPill(
+                        icon: Icons.yard_outlined,
+                        label: formatValue(data.settings.gardenType),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -236,19 +354,21 @@ class _SummaryCards extends StatelessWidget {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.7,
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
+      childAspectRatio: 1.45,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
       children: [
         _SummaryCard(
           icon: Icons.eco_outlined,
           label: 'Plant now',
           value: data.plantableCrops.length.toString(),
+          color: HomeScreen._leaf,
         ),
         _SummaryCard(
           icon: Icons.recommend_outlined,
           label: 'Best fit',
           value: data.recommendedCrops.length.toString(),
+          color: HomeScreen._clay,
         ),
       ],
     );
@@ -260,34 +380,47 @@ class _SummaryCard extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    required this.color,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge,
+    return _PrettyCard(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.13),
+              borderRadius: BorderRadius.circular(18),
             ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
+            child: Icon(icon, color: color, size: 25),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: HomeScreen._ink,
+                ),
+          ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: HomeScreen._muted,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
       ),
     );
   }
@@ -298,52 +431,61 @@ class _QuickActionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.touch_app_outlined),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Quick actions',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+    return _PrettyCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: HomeScreen._mint,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: 2.45,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              children: [
-                _QuickActionButton(
-                  icon: Icons.menu_book_outlined,
-                  label: 'Crop guide',
-                  onTap: () => _open(context, const CropGuideScreen()),
+                child: const Icon(Icons.touch_app_outlined, color: HomeScreen._leaf),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Quick actions',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.4,
+                      ),
                 ),
-                _QuickActionButton(
-                  icon: Icons.calendar_month_outlined,
-                  label: 'Calendar',
-                  onTap: () => _open(context, const CropCalendarScreen()),
-                ),
-                _QuickActionButton(
-                  icon: Icons.checklist_outlined,
-                  label: 'Tasks',
-                  onTap: () => _open(context, const WeeklyTasksScreen()),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 2.25,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            children: [
+              _QuickActionButton(
+                icon: Icons.menu_book_outlined,
+                label: 'Crop guide',
+                onTap: () => _open(context, const CropGuideScreen()),
+              ),
+              _QuickActionButton(
+                icon: Icons.calendar_month_outlined,
+                label: 'Calendar',
+                onTap: () => _open(context, const CropCalendarScreen()),
+              ),
+              _QuickActionButton(
+                icon: Icons.checklist_outlined,
+                label: 'Tasks',
+                onTap: () => _open(context, const WeeklyTasksScreen()),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -370,7 +512,7 @@ class _QuickActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
       onPressed: onTap,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 19),
       label: Text(
         label,
         maxLines: 1,
@@ -378,7 +520,7 @@ class _QuickActionButton extends StatelessWidget {
       ),
       style: OutlinedButton.styleFrom(
         alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
       ),
     );
   }
@@ -395,40 +537,45 @@ class _BestForSetupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.recommend_outlined),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Best fit for your setup',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+    return _PrettyCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: HomeScreen._clay.withOpacity(0.13),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (crops.isEmpty)
-              const Text(
-                'No strong recommendations found for this month. Check the full planting list below.',
-              )
-            else
-              ...crops.map(
-                (crop) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.eco_outlined),
-                  title: Text(crop.commonName),
-                  subtitle: Text(_reasonForCrop(crop)),
+                child: const Icon(Icons.recommend_outlined, color: HomeScreen._clay),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Best fit for your setup',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.4,
+                      ),
                 ),
               ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (crops.isEmpty)
+            const Text('No strong recommendations found for this month. Check the full planting list below.')
+          else
+            ...crops.map(
+              (crop) => _RecommendedCropTile(
+                crop: crop,
+                reason: _reasonForCrop(crop),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -448,8 +595,7 @@ class _BestForSetupCard extends StatelessWidget {
       reasons.add('better for frost-prone gardens');
     }
 
-    if ((settings.windExposure == 'exposed' || settings.windExposure == 'coastal') &&
-        crop.containerFriendly) {
+    if ((settings.windExposure == 'exposed' || settings.windExposure == 'coastal') && crop.containerFriendly) {
       reasons.add('can be moved or sheltered');
     }
 
@@ -457,8 +603,279 @@ class _BestForSetupCard extends StatelessWidget {
       return crop.summary;
     }
 
-    return '${crop.summary}\nWhy: ${reasons.join(', ')}.';
+    return reasons.join(' · ');
   }
+}
+
+class _RecommendedCropTile extends StatelessWidget {
+  const _RecommendedCropTile({required this.crop, required this.reason});
+
+  final Crop crop;
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _PlantBadge(label: crop.commonName, size: 44),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  crop.commonName,
+                  style: const TextStyle(
+                    color: HomeScreen._ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  reason,
+                  style: const TextStyle(
+                    color: HomeScreen._muted,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CropPreviewCard extends StatelessWidget {
+  const _CropPreviewCard({required this.crop});
+
+  final Crop crop;
+
+  @override
+  Widget build(BuildContext context) {
+    return _PrettyCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          _PlantBadge(label: crop.commonName),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        crop.commonName,
+                        style: const TextStyle(
+                          color: HomeScreen._ink,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 17,
+                        ),
+                      ),
+                    ),
+                    if (crop.frostTender)
+                      const _MiniPill(
+                        label: 'Frost tender',
+                        color: HomeScreen._clay,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  crop.summary,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: HomeScreen._muted, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrettyCard extends StatelessWidget {
+  const _PrettyCard({required this.child, this.padding = const EdgeInsets.all(16)});
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: HomeScreen._surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: HomeScreen._border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 22,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _MiniPill extends StatelessWidget {
+  const _MiniPill({required this.label, this.color = HomeScreen._leaf});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _PlantBadge extends StatelessWidget {
+  const _PlantBadge({required this.label, this.size = 56});
+
+  final String label;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = label.isEmpty ? '?' : label.characters.first.toUpperCase();
+
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            HomeScreen._mint,
+            Color(0xFFD4E5BE),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(size * 0.36),
+      ),
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: HomeScreen._leaf,
+          fontSize: size * 0.38,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassPill extends StatelessWidget {
+  const _GlassPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withOpacity(0.20)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 16),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SoftCircle extends StatelessWidget {
+  const _SoftCircle({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      ),
+    );
+  }
+}
+
+class _LeafPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final leafPaint = Paint()..color = Colors.white.withOpacity(0.10);
+    final stemPaint = Paint()
+      ..color = Colors.white.withOpacity(0.13)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    final baseX = size.width * 0.70;
+    final baseY = size.height * 0.98;
+
+    for (var i = 0; i < 6; i++) {
+      final dx = baseX + (i - 2.5) * 23;
+      final height = 82.0 + i * 9;
+      final path = Path()
+        ..moveTo(dx, baseY)
+        ..quadraticBezierTo(dx - 18, baseY - height * 0.45, dx + 4, baseY - height);
+      canvas.drawPath(path, stemPaint);
+
+      canvas.save();
+      canvas.translate(dx + 2, baseY - height * 0.70);
+      canvas.rotate(-0.55 + i * 0.18);
+      canvas.drawOval(const Rect.fromLTWH(-8, -18, 18, 36), leafPaint);
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _HomeData {

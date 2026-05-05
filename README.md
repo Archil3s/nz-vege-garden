@@ -25,6 +25,21 @@ For an Android emulator or connected Android device:
 flutter run
 ```
 
+## Preflight checks
+
+Before running the app locally:
+
+```bash
+python tools/validate_data.py
+flutter pub get
+flutter analyze
+flutter test
+```
+
+A fuller local testing checklist is available here:
+
+- [Local testing checklist](docs/local_testing_checklist.md)
+
 ## Data validation
 
 The project includes a Python data validator for the bundled offline JSON data.
@@ -48,6 +63,7 @@ MVP app features are being built with offline bundled data, local device storage
 Progress tracker:
 
 - [Project progress log](docs/progress_log.md)
+- [Local testing checklist](docs/local_testing_checklist.md)
 - [MVP scope](docs/mvp_scope.md)
 - [Data model](docs/data_model.md)
 - [NZ growing regions](docs/nz_regions.md)
@@ -57,6 +73,7 @@ Progress tracker:
 ## What has been added so far
 
 ```text
+.github/workflows/
 docs/
 assets/data/
 lib/main.dart
@@ -77,6 +94,7 @@ The app currently has:
 - Bottom navigation
 - Local JSON crop, region, planting-rule, pest/problem, and task-rule data
 - Python data validation tooling
+- GitHub Actions data validation workflow
 - Home dashboard with upcoming harvests
 - Searchable/filterable crop guide and crop detail screens
 - Garden bed planner with local bed creation and storage

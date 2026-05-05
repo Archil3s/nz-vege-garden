@@ -6,6 +6,7 @@ import '../features/crops/crop_guide_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/insights/insights_screen.dart';
 import '../features/pests/pest_guide_screen.dart';
+import '../features/pruning/pruning_guide_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/tasks/weekly_tasks_screen.dart';
 import 'app_theme.dart';
@@ -135,6 +136,12 @@ class _MoreScreen extends StatelessWidget {
                 title: 'Weekly tasks',
                 description: 'Local task suggestions, reminders, and succession actions.',
                 onTap: () => onOpenSection(const WeeklyTasksScreen()),
+              ),
+              _MoreSectionTile(
+                icon: Icons.content_cut_outlined,
+                title: 'Pruning guide',
+                description: 'Bushes, trees, hedges, berries, vines, and shrubs.',
+                onTap: () => onOpenSection(const PruningGuideScreen()),
               ),
             ],
           ),

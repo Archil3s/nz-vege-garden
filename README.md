@@ -25,12 +25,24 @@ For an Android emulator or connected Android device:
 flutter run
 ```
 
+## Data validation
+
+The project includes a Python data validator for the bundled offline JSON data.
+
+Run from the repository root:
+
+```bash
+python tools/validate_data.py
+```
+
+This checks crop, region, planting-rule, pest/problem, and task-rule data before running the Flutter app.
+
 ## Project status
 
 Current build phase:
 
 ```text
-MVP app features are being built with offline bundled data and local device storage.
+MVP app features are being built with offline bundled data, local device storage, and lightweight validation tooling.
 ```
 
 Progress tracker:
@@ -40,6 +52,7 @@ Progress tracker:
 - [Data model](docs/data_model.md)
 - [NZ growing regions](docs/nz_regions.md)
 - [Initial crop list](docs/crop_list.md)
+- [Tools](tools/README.md)
 
 ## What has been added so far
 
@@ -50,6 +63,7 @@ lib/main.dart
 lib/app/
 lib/data/
 lib/features/
+tools/
 web/
 test/
 pubspec.yaml
@@ -62,9 +76,11 @@ The app currently has:
 - Material 3 app shell
 - Bottom navigation
 - Local JSON crop, region, planting-rule, pest/problem, and task-rule data
-- Home screen showing what to plant now
-- Crop guide and crop detail screens
+- Python data validation tooling
+- Home dashboard with upcoming harvests
+- Searchable/filterable crop guide and crop detail screens
 - Garden bed planner with local bed creation and storage
+- Crop-to-bed planting with estimated harvest windows
 - Weekly task recommendations generated from local rules
 - Offline pest/problem guide
 - Editable local settings
@@ -113,6 +129,7 @@ Planned stack:
 
 - Flutter
 - Dart
+- Python for local data tooling
 - Drift / SQLite later if needed
 - Bundled JSON seed data
 - Local notifications

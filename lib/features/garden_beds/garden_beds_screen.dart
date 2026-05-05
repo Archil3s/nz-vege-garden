@@ -7,6 +7,7 @@ import '../../data/models/garden_bed_planting.dart';
 import 'add_bed_planting_screen.dart';
 import 'add_garden_bed_screen.dart';
 import 'edit_bed_planting_screen.dart';
+import 'edit_garden_bed_screen.dart';
 
 class GardenBedsScreen extends StatefulWidget {
   const GardenBedsScreen({super.key});
@@ -51,6 +52,18 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
     }
   }
 
+  Future<void> _openEditGardenBedScreen(GardenBed bed) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EditGardenBedScreen(bed: bed),
+      ),
+    );
+
+    if (saved == true) {
+      _reloadGardenBeds();
+    }
+  }
+
   Future<void> _openAddPlantingScreen(GardenBed bed) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -82,6 +95,30 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
   }
 
   Future<void> _deleteGardenBed(GardenBed bed) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete garden bed?'),
+        content: Text(
+          'This will delete ${bed.name} and any crops saved in this bed. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
     await _bedRepository.deleteGardenBed(bed.id);
     await _plantingRepository.deletePlantingsForBed(bed.id);
 
@@ -156,6 +193,7 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
                 bed: bed,
                 plantings: bedPlantings,
                 onAddCropPressed: () => _openAddPlantingScreen(bed),
+                onEditPressed: () => _openEditGardenBedScreen(bed),
                 onDeletePressed: () => _deleteGardenBed(bed),
                 onDeletePlantingPressed: _deletePlanting,
                 onEditPlantingPressed: (planting) => _openEditPlantingScreen(
@@ -223,6 +261,7 @@ class _GardenBedCard extends StatelessWidget {
     required this.bed,
     required this.plantings,
     required this.onAddCropPressed,
+    required this.onEditPressed,
     required this.onDeletePressed,
     required this.onDeletePlantingPressed,
     required this.onEditPlantingPressed,
@@ -231,6 +270,7 @@ class _GardenBedCard extends StatelessWidget {
   final GardenBed bed;
   final List<GardenBedPlanting> plantings;
   final VoidCallback onAddCropPressed;
+  final VoidCallback onEditPressed;
   final VoidCallback onDeletePressed;
   final ValueChanged<GardenBedPlanting> onDeletePlantingPressed;
   final ValueChanged<GardenBedPlanting> onEditPlantingPressed;
@@ -262,6 +302,11 @@ class _GardenBedCard extends StatelessWidget {
                       Text(_formatValue(bed.type)),
                     ],
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Edit bed',
+                  onPressed: onEditPressed,
+                  icon: const Icon(Icons.edit_outlined),
                 ),
                 IconButton(
                   tooltip: 'Delete bed',

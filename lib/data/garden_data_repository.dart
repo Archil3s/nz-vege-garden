@@ -6,6 +6,7 @@ import 'models/crop.dart';
 import 'models/nz_region.dart';
 import 'models/pest_problem.dart';
 import 'models/planting_rule.dart';
+import 'models/succession_rule.dart';
 import 'models/task_rule.dart';
 
 class GardenDataRepository {
@@ -58,6 +59,16 @@ class GardenDataRepository {
     return data
         .cast<Map<String, dynamic>>()
         .map(TaskRule.fromJson)
+        .toList(growable: false);
+  }
+
+  Future<List<SuccessionRule>> loadSuccessionRules() async {
+    final content = await rootBundle.loadString('assets/data/succession_rules.json');
+    final data = jsonDecode(content) as List<dynamic>;
+
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(SuccessionRule.fromJson)
         .toList(growable: false);
   }
 

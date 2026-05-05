@@ -102,6 +102,15 @@ class _CropCalendarScreenState extends State<CropCalendarScreen> {
       });
   }
 
+  Map<_CalendarActivity, List<_CalendarEntry>> _groupEntriesByActivity(
+    List<_CalendarEntry> entries,
+  ) {
+    return {
+      for (final activity in _CalendarActivity.values)
+        activity: entries.where((entry) => entry.activity == activity).toList(growable: false),
+    };
+  }
+
   int _offsetMonth(int month, int offset) {
     final zeroBased = month - 1 + offset;
     return (zeroBased % 12) + 1;
@@ -154,6 +163,7 @@ class _CropCalendarScreenState extends State<CropCalendarScreen> {
           }
 
           final entries = _entriesForMonth(data.entries);
+          final groupedEntries = _groupEntriesByActivity(entries);
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -179,11 +189,12 @@ class _CropCalendarScreenState extends State<CropCalendarScreen> {
               const SizedBox(height: 16),
               _LegendCard(),
               const SizedBox(height: 16),
-              Text(
-                '${_monthName(_selectedMonth)} calendar',
-                style: Theme.of(context).textTheme.titleLarge,
+              _MonthSummaryCard(
+                month: _selectedMonth,
+                entries: entries,
+                groupedEntries: groupedEntries,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
               if (entries.isEmpty)
                 Card(
                   child: Padding(
@@ -191,6 +202,13 @@ class _CropCalendarScreenState extends State<CropCalendarScreen> {
                     child: Text(
                       'No ${_activityFilter == 'all' ? 'calendar entries' : _activityFilter} found for ${_monthName(_selectedMonth)}.',
                     ),
+                  ),
+                )
+              else if (_activityFilter == 'all')
+                ..._CalendarActivity.values.map(
+                  (activity) => _ActivitySection(
+                    activity: activity,
+                    entries: groupedEntries[activity] ?? const <_CalendarEntry>[],
                   ),
                 )
               else
@@ -288,6 +306,90 @@ class _LegendCard extends StatelessWidget {
   }
 }
 
+class _MonthSummaryCard extends StatelessWidget {
+  const _MonthSummaryCard({
+    required this.month,
+    required this.entries,
+    required this.groupedEntries,
+  });
+
+  final int month;
+  final List<_CalendarEntry> entries;
+  final Map<_CalendarActivity, List<_CalendarEntry>> groupedEntries;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${_monthName(month)} at a glance',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text('${entries.length} calendar actions for this month.'),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _CalendarActivity.values
+                  .map(
+                    (activity) => Chip(
+                      avatar: Icon(activity.icon, size: 18),
+                      label: Text('${activity.label}: ${groupedEntries[activity]?.length ?? 0}'),
+                      backgroundColor: activity.backgroundColor(context),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivitySection extends StatelessWidget {
+  const _ActivitySection({
+    required this.activity,
+    required this.entries,
+  });
+
+  final _CalendarActivity activity;
+  final List<_CalendarEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entries.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(activity.icon),
+              const SizedBox(width: 8),
+              Text(
+                activity.sectionTitle,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...entries.map((entry) => _CalendarEntryCard(entry: entry)),
+        ],
+      ),
+    );
+  }
+}
+
 class _CalendarEntryCard extends StatelessWidget {
   const _CalendarEntryCard({required this.entry});
 
@@ -363,18 +465,21 @@ enum _CalendarActivity {
   sow(
     id: 'sow',
     label: 'Sow',
+    sectionTitle: 'Sow this month',
     icon: Icons.grass_outlined,
     sortOrder: 1,
   ),
   transplant(
     id: 'transplant',
     label: 'Transplant',
+    sectionTitle: 'Transplant this month',
     icon: Icons.move_down_outlined,
     sortOrder: 2,
   ),
   harvest(
     id: 'harvest',
     label: 'Harvest',
+    sectionTitle: 'Likely harvests',
     icon: Icons.shopping_basket_outlined,
     sortOrder: 3,
   );
@@ -382,12 +487,14 @@ enum _CalendarActivity {
   const _CalendarActivity({
     required this.id,
     required this.label,
+    required this.sectionTitle,
     required this.icon,
     required this.sortOrder,
   });
 
   final String id;
   final String label;
+  final String sectionTitle;
   final IconData icon;
   final int sortOrder;
 

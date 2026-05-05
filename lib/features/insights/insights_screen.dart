@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/crop_rotation_service.dart';
 import '../../data/garden_bed_planting_repository.dart';
 import '../../data/garden_bed_repository.dart';
 import '../../data/garden_data_repository.dart';
@@ -46,12 +47,14 @@ class InsightsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Local insights based on saved beds, planted crops, spacing, harvest windows, and today’s date.',
+                'Local insights based on saved beds, planted crops, spacing, harvest windows, rotation families, and today’s date.',
               ),
               const SizedBox(height: 16),
               _InsightSummaryGrid(data: data),
               const SizedBox(height: 16),
               _HarvestInsightCard(data: data),
+              const SizedBox(height: 16),
+              _RotationInsightCard(data: data),
               const SizedBox(height: 16),
               _BedUtilisationCard(data: data),
               const SizedBox(height: 16),
@@ -67,6 +70,7 @@ class InsightsScreen extends StatelessWidget {
     const bedRepository = GardenBedRepository();
     const plantingRepository = GardenBedPlantingRepository();
     const dataRepository = GardenDataRepository();
+    const rotationService = CropRotationService();
 
     final beds = await bedRepository.loadGardenBeds();
     final plantings = await plantingRepository.loadPlantings();
@@ -76,6 +80,7 @@ class InsightsScreen extends StatelessWidget {
       beds: beds,
       plantings: plantings,
       crops: crops,
+      rotationService: rotationService,
       now: DateTime.now(),
     );
   }
@@ -84,6 +89,7 @@ class InsightsScreen extends StatelessWidget {
     required List<GardenBed> beds,
     required List<GardenBedPlanting> plantings,
     required List<Crop> crops,
+    required CropRotationService rotationService,
     required DateTime now,
   }) {
     final today = DateTime(now.year, now.month, now.day);
@@ -153,6 +159,14 @@ class InsightsScreen extends StatelessWidget {
     }).toList(growable: false)
       ..sort((a, b) => a.bed.name.compareTo(b.bed.name));
 
+    final rotationInsights = rotationService.buildBedRotationInsights(
+      beds: beds,
+      plantings: plantings,
+    );
+    final rotationRiskCount = rotationInsights
+        .where((insight) => insight.hasRisk)
+        .length;
+
     final nextActions = _buildNextActions(
       beds: beds,
       activePlantings: activePlantings,
@@ -161,6 +175,7 @@ class InsightsScreen extends StatelessWidget {
       harvestSoon: harvestSoon,
       overdueHarvests: overdueHarvests,
       bedInsights: bedInsights,
+      rotationRiskCount: rotationRiskCount,
     );
 
     return _InsightsData(
@@ -173,6 +188,8 @@ class InsightsScreen extends StatelessWidget {
       harvestSoon: harvestSoon,
       overdueHarvests: overdueHarvests,
       bedInsights: bedInsights,
+      rotationInsights: rotationInsights,
+      rotationRiskCount: rotationRiskCount,
       nextActions: nextActions,
     );
   }
@@ -201,14 +218,20 @@ class InsightsScreen extends StatelessWidget {
       return null;
     }
 
-    final averagePlantArea = plantings
-            .map((planting) => cropById[planting.cropId])
-            .whereType<Crop>()
-            .map((crop) {
-          final spacingMeters = crop.spacingCm / 100;
-          return spacingMeters * spacingMeters;
-        }).fold<double>(0, (sum, area) => sum + area) /
-        plantings.length;
+    final plantAreas = plantings
+        .map((planting) => cropById[planting.cropId])
+        .whereType<Crop>()
+        .map((crop) {
+      final spacingMeters = crop.spacingCm / 100;
+      return spacingMeters * spacingMeters;
+    }).toList(growable: false);
+
+    if (plantAreas.isEmpty) {
+      return null;
+    }
+
+    final averagePlantArea =
+        plantAreas.fold<double>(0, (sum, area) => sum + area) / plantAreas.length;
 
     if (averagePlantArea <= 0) {
       return null;
@@ -225,6 +248,7 @@ class InsightsScreen extends StatelessWidget {
     required List<GardenBedPlanting> harvestSoon,
     required List<GardenBedPlanting> overdueHarvests,
     required List<_BedInsight> bedInsights,
+    required int rotationRiskCount,
   }) {
     final actions = <_NextAction>[];
 
@@ -245,6 +269,17 @@ class InsightsScreen extends StatelessWidget {
           title: 'Move planned crops forward',
           description:
               '${plannedPlantings.length} planned crop entries are waiting to be sown, transplanted, or marked as growing.',
+        ),
+      );
+    }
+
+    if (rotationRiskCount > 0) {
+      actions.add(
+        _NextAction(
+          icon: Icons.sync_problem_outlined,
+          title: 'Review crop rotation',
+          description:
+              '$rotationRiskCount bed${rotationRiskCount == 1 ? '' : 's'} may be repeating the same crop family.',
         ),
       );
     }
@@ -311,7 +346,7 @@ class InsightsScreen extends StatelessWidget {
         const _NextAction(
           icon: Icons.check_circle_outline,
           title: 'Garden looks steady',
-          description: 'No urgent harvest or spacing issues detected from local data.',
+          description: 'No urgent harvest, rotation, or spacing issues detected from local data.',
         ),
       );
     }
@@ -351,9 +386,9 @@ class _InsightSummaryGrid extends StatelessWidget {
           value: data.totalPlants.toString(),
         ),
         _MetricCard(
-          icon: Icons.shopping_basket_outlined,
-          label: 'Ready',
-          value: data.harvestReady.length.toString(),
+          icon: Icons.sync_problem_outlined,
+          label: 'Rotation risks',
+          value: data.rotationRiskCount.toString(),
         ),
       ],
     );
@@ -473,6 +508,73 @@ class _HarvestInsightCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RotationInsightCard extends StatelessWidget {
+  const _RotationInsightCard({required this.data});
+
+  final _InsightsData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final riskyBeds = data.rotationInsights
+        .where((insight) => insight.hasRisk)
+        .toList(growable: false);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.sync_alt_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Crop rotation',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (data.rotationInsights.isEmpty)
+              const Text('Add beds and crops to see rotation guidance.')
+            else if (riskyBeds.isEmpty)
+              const Text('No repeated crop-family risks detected yet.')
+            else
+              ...riskyBeds.map(
+                (insight) => _RotationRiskTile(insight: insight),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RotationRiskTile extends StatelessWidget {
+  const _RotationRiskTile({required this.insight});
+
+  final BedRotationInsight insight;
+
+  @override
+  Widget build(BuildContext context) {
+    final families = insight.riskFamilies.map((family) => family.label).join(', ');
+    final advice = insight.riskFamilies.map((family) => family.shortAdvice).join(' ');
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        Icons.warning_amber_outlined,
+        color: Theme.of(context).colorScheme.error,
+      ),
+      title: Text(insight.bed.name),
+      subtitle: Text('$families. $advice'),
     );
   }
 }
@@ -660,6 +762,8 @@ class _InsightsData {
     required this.harvestSoon,
     required this.overdueHarvests,
     required this.bedInsights,
+    required this.rotationInsights,
+    required this.rotationRiskCount,
     required this.nextActions,
   });
 
@@ -672,6 +776,8 @@ class _InsightsData {
   final List<GardenBedPlanting> harvestSoon;
   final List<GardenBedPlanting> overdueHarvests;
   final List<_BedInsight> bedInsights;
+  final List<BedRotationInsight> rotationInsights;
+  final int rotationRiskCount;
   final List<_NextAction> nextActions;
 }
 

@@ -9,6 +9,7 @@ import '../../data/models/crop.dart';
 import '../../data/models/nz_region.dart';
 import '../calendar/crop_calendar_screen.dart';
 import '../crops/crop_guide_screen.dart';
+import '../pruning/pruning_guide_screen.dart';
 import '../tasks/weekly_tasks_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -89,6 +90,8 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  RepaintBoundary(child: _SowNowPanel(crops: data.plantableCrops)),
+                  const SizedBox(height: 16),
                   RepaintBoundary(child: _SummaryCards(data: data)),
                   const SizedBox(height: 16),
                   const RepaintBoundary(child: _QuickActionsCard()),
@@ -104,7 +107,7 @@ class HomeScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          'Plant now',
+                          'More to plant',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.3,
@@ -263,11 +266,7 @@ class _HeroDashboardCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(34),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0x24172D22),
-            blurRadius: 32,
-            offset: Offset(0, 18),
-          ),
+          BoxShadow(color: Color(0x24172D22), blurRadius: 32, offset: Offset(0, 18)),
         ],
       ),
       child: ClipRRect(
@@ -280,11 +279,7 @@ class _HeroDashboardCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      HomeScreen._leafDark,
-                      HomeScreen._leaf,
-                      HomeScreen._moss,
-                    ],
+                    colors: [HomeScreen._leafDark, HomeScreen._leaf, HomeScreen._moss],
                   ),
                 ),
               ),
@@ -305,7 +300,7 @@ class _HeroDashboardCard extends StatelessWidget {
                             _GlassPill(icon: Icons.place_outlined, label: regionName),
                             const SizedBox(height: 18),
                             const Text(
-                              'Tap into\nyour garden',
+                              'Sow, grow\nand prune',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 34,
@@ -325,24 +320,104 @@ class _HeroDashboardCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _GlassPill(
-                        icon: Icons.ac_unit_outlined,
-                        label: 'Frost ${formatValue(data.settings.frostRisk)}',
-                      ),
-                      _GlassPill(
-                        icon: Icons.air_outlined,
-                        label: 'Wind ${formatValue(data.settings.windExposure)}',
-                      ),
-                      _GlassPill(
-                        icon: Icons.yard_outlined,
-                        label: formatValue(data.settings.gardenType),
-                      ),
+                      _GlassPill(icon: Icons.ac_unit_outlined, label: 'Frost ${formatValue(data.settings.frostRisk)}'),
+                      _GlassPill(icon: Icons.air_outlined, label: 'Wind ${formatValue(data.settings.windExposure)}'),
+                      _GlassPill(icon: Icons.yard_outlined, label: formatValue(data.settings.gardenType)),
                     ],
                   ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SowNowPanel extends StatelessWidget {
+  const _SowNowPanel({required this.crops});
+
+  final List<Crop> crops;
+
+  @override
+  Widget build(BuildContext context) {
+    final sowNow = crops.take(4).toList(growable: false);
+
+    return _PrettyCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SvgPicture.asset('assets/icons/seedling.svg', width: 48, height: 48),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Sow now',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.4,
+                      ),
+                ),
+              ),
+              _MiniPill(label: '${sowNow.length} picks'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (sowNow.isEmpty)
+            const Text('No sowing picks for this month.')
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: sowNow.map((crop) => _SowNowButton(crop: crop)).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SowNowButton extends StatelessWidget {
+  const _SowNowButton({required this.crop});
+
+  final Crop crop;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () => _openCropBottomSheet(context, crop),
+        child: Ink(
+          padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+          decoration: BoxDecoration(
+            color: HomeScreen._leaf,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: Text(
+                  crop.commonName.characters.first.toUpperCase(),
+                  style: const TextStyle(color: HomeScreen._leaf, fontWeight: FontWeight.w900),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                crop.commonName,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -364,27 +439,53 @@ class _SummaryCards extends StatelessWidget {
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       children: [
-        _SummaryCard(
-          asset: 'assets/icons/seedling.svg',
-          label: 'Plant now',
-          value: data.plantableCrops.length.toString(),
-        ),
-        _SummaryCard(
-          asset: 'assets/icons/weather_frost.svg',
-          label: 'Best fit',
-          value: data.recommendedCrops.length.toString(),
-        ),
+        _SummaryCard(asset: 'assets/icons/seedling.svg', label: 'Sow now', value: data.plantableCrops.length.toString()),
+        const _PruneSummaryCard(),
       ],
     );
   }
 }
 
+class _PruneSummaryCard extends StatelessWidget {
+  const _PruneSummaryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PruningGuideScreen()));
+        },
+        child: _PrettyCard(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SvgPicture.asset('assets/icons/pruning_shears.svg', width: 50, height: 50),
+              const SizedBox(height: 8),
+              Text(
+                '8',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, color: HomeScreen._ink),
+              ),
+              Text(
+                'Prune guide',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: HomeScreen._muted, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.asset,
-    required this.label,
-    required this.value,
-  });
+  const _SummaryCard({required this.asset, required this.label, required this.value});
 
   final String asset;
   final String label;
@@ -401,19 +502,13 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: HomeScreen._ink,
-                ),
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, color: HomeScreen._ink),
           ),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: HomeScreen._muted,
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: HomeScreen._muted, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -434,10 +529,7 @@ class _QuickActionsCard extends StatelessWidget {
             Expanded(
               child: Text(
                 'Pick a path',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.4,
-                    ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -0.4),
               ),
             ),
             const _MiniPill(label: 'tap cards'),
@@ -449,23 +541,15 @@ class _QuickActionsCard extends StatelessWidget {
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
-              _ActionTile(
-                asset: 'assets/icons/crop_guide.svg',
-                label: 'Crops',
-                onTap: () => _open(context, const CropGuideScreen()),
-              ),
+              _ActionTile(asset: 'assets/icons/seedling.svg', label: 'Sow', onTap: () {}),
               const SizedBox(width: 12),
-              _ActionTile(
-                asset: 'assets/icons/calendar_leaf.svg',
-                label: 'Calendar',
-                onTap: () => _open(context, const CropCalendarScreen()),
-              ),
+              _ActionTile(asset: 'assets/icons/crop_guide.svg', label: 'Crops', onTap: () => _open(context, const CropGuideScreen())),
               const SizedBox(width: 12),
-              _ActionTile(
-                asset: 'assets/icons/task_sprout.svg',
-                label: 'Tasks',
-                onTap: () => _open(context, const WeeklyTasksScreen()),
-              ),
+              _ActionTile(asset: 'assets/icons/calendar_leaf.svg', label: 'Calendar', onTap: () => _open(context, const CropCalendarScreen())),
+              const SizedBox(width: 12),
+              _ActionTile(asset: 'assets/icons/task_sprout.svg', label: 'Tasks', onTap: () => _open(context, const WeeklyTasksScreen())),
+              const SizedBox(width: 12),
+              _ActionTile(asset: 'assets/icons/pruning_shears.svg', label: 'Prune', onTap: () => _open(context, const PruningGuideScreen())),
             ],
           ),
         ),
@@ -475,9 +559,7 @@ class _QuickActionsCard extends StatelessWidget {
 
   void _open(BuildContext context, Widget screen) {
     HapticFeedback.selectionClick();
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 }
 
@@ -495,7 +577,10 @@ class _ActionTile extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(28),
-          onTap: onTap,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
           child: Ink(
             width: 132,
             padding: const EdgeInsets.all(14),
@@ -503,23 +588,14 @@ class _ActionTile extends StatelessWidget {
               color: HomeScreen._surface,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(color: HomeScreen._border),
-              boxShadow: const [
-                BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10)),
-              ],
+              boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SvgPicture.asset(asset, width: 66, height: 66),
                 const SizedBox(height: 10),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: HomeScreen._ink,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                Text(label, style: const TextStyle(color: HomeScreen._ink, fontSize: 17, fontWeight: FontWeight.w900)),
               ],
             ),
           ),
@@ -530,10 +606,7 @@ class _ActionTile extends StatelessWidget {
 }
 
 class _BestForSetupCard extends StatelessWidget {
-  const _BestForSetupCard({
-    required this.crops,
-    required this.settings,
-  });
+  const _BestForSetupCard({required this.crops, required this.settings});
 
   final List<Crop> crops;
   final AppSettings settings;
@@ -552,10 +625,7 @@ class _BestForSetupCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Best picks',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.4,
-                      ),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -0.4),
                 ),
               ),
             ],
@@ -564,15 +634,7 @@ class _BestForSetupCard extends StatelessWidget {
           if (crops.isEmpty)
             const Text('No strong recommendations found for this month.')
           else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: crops
-                  .map(
-                    (crop) => _CropChip(crop: crop),
-                  )
-                  .toList(),
-            ),
+            Wrap(spacing: 8, runSpacing: 8, children: crops.map((crop) => _CropChip(crop: crop)).toList()),
         ],
       ),
     );
@@ -593,22 +655,13 @@ class _CropChip extends StatelessWidget {
         onTap: () => _openCropBottomSheet(context, crop),
         child: Ink(
           padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
-          decoration: BoxDecoration(
-            color: HomeScreen._mint,
-            borderRadius: BorderRadius.circular(999),
-          ),
+          decoration: BoxDecoration(color: HomeScreen._mint, borderRadius: BorderRadius.circular(999)),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               _PlantBadge(label: crop.commonName, size: 30),
               const SizedBox(width: 7),
-              Text(
-                crop.commonName,
-                style: const TextStyle(
-                  color: HomeScreen._leafDark,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+              Text(crop.commonName, style: const TextStyle(color: HomeScreen._leafDark, fontWeight: FontWeight.w900)),
             ],
           ),
         ),
@@ -637,9 +690,7 @@ class _CropTapCard extends StatelessWidget {
               color: HomeScreen._surface,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(color: HomeScreen._border),
-              boxShadow: const [
-                BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10)),
-              ],
+              boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -650,17 +701,10 @@ class _CropTapCard extends StatelessWidget {
                   crop.commonName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: HomeScreen._ink,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                  ),
+                  style: const TextStyle(color: HomeScreen._ink, fontWeight: FontWeight.w900, fontSize: 16),
                 ),
                 const SizedBox(height: 7),
-                if (crop.frostTender)
-                  const _MiniPill(label: 'frost', color: HomeScreen._clay)
-                else
-                  const _MiniPill(label: 'hardy'),
+                if (crop.frostTender) const _MiniPill(label: 'frost', color: HomeScreen._clay) else const _MiniPill(label: 'hardy'),
               ],
             ),
           ),
@@ -688,17 +732,24 @@ class _CropBottomSheet extends StatelessWidget {
               const _SvgIconBox(asset: 'assets/icons/seedling.svg', size: 64),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  crop.commonName,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
+                child: Text(crop.commonName, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
               ),
             ],
           ),
           const SizedBox(height: 14),
           Text(crop.summary),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MiniPill(label: '${crop.spacingCm}cm'),
+              _MiniPill(label: '${crop.daysToHarvestMin}-${crop.daysToHarvestMax} days'),
+              if (crop.containerFriendly) const _MiniPill(label: 'container'),
+              if (crop.beginnerFriendly) const _MiniPill(label: 'easy'),
+              if (crop.frostTender) const _MiniPill(label: 'frost tender', color: HomeScreen._clay),
+            ],
+          ),
           const SizedBox(height: 18),
           Row(
             children: [
@@ -745,13 +796,7 @@ class _PrettyCard extends StatelessWidget {
         color: HomeScreen._surface,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: HomeScreen._border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 22,
-            offset: Offset(0, 10),
-          ),
-        ],
+        boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))],
       ),
       child: child,
     );
@@ -768,18 +813,8 @@ class _MiniPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
+      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(999)),
+      child: Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w900)),
     );
   }
 }
@@ -799,24 +834,10 @@ class _PlantBadge extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            HomeScreen._mint,
-            Color(0xFFD4E5BE),
-          ],
-        ),
+        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [HomeScreen._mint, Color(0xFFD4E5BE)]),
         borderRadius: BorderRadius.circular(size * 0.36),
       ),
-      child: Text(
-        initial,
-        style: TextStyle(
-          color: HomeScreen._leaf,
-          fontSize: size * 0.38,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
+      child: Text(initial, style: TextStyle(color: HomeScreen._leaf, fontSize: size * 0.38, fontWeight: FontWeight.w900)),
     );
   }
 }
@@ -853,14 +874,7 @@ class _GlassPill extends StatelessWidget {
         children: [
           Icon(icon, color: Colors.white, size: 16),
           const SizedBox(width: 7),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-            ),
-          ),
+          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
         ],
       ),
     );
@@ -876,11 +890,7 @@ class _SoftCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-      ),
+      child: Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
     );
   }
 }
@@ -904,7 +914,6 @@ class _LeafPatternPainter extends CustomPainter {
         ..moveTo(dx, baseY)
         ..quadraticBezierTo(dx - 18, baseY - height * 0.45, dx + 4, baseY - height);
       canvas.drawPath(path, stemPaint);
-
       canvas.save();
       canvas.translate(dx + 2, baseY - height * 0.70);
       canvas.rotate(-0.55 + i * 0.18);
@@ -918,12 +927,7 @@ class _LeafPatternPainter extends CustomPainter {
 }
 
 class _HomeData {
-  const _HomeData({
-    required this.settings,
-    required this.selectedRegion,
-    required this.plantableCrops,
-    required this.recommendedCrops,
-  });
+  const _HomeData({required this.settings, required this.selectedRegion, required this.plantableCrops, required this.recommendedCrops});
 
   final AppSettings settings;
   final NzRegion? selectedRegion;
@@ -932,10 +936,7 @@ class _HomeData {
 }
 
 class _ScoredCrop {
-  const _ScoredCrop({
-    required this.crop,
-    required this.score,
-  });
+  const _ScoredCrop({required this.crop, required this.score});
 
   final Crop crop;
   final int score;

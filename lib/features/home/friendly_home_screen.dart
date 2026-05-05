@@ -38,7 +38,7 @@ class FriendlyHomeScreen extends StatelessWidget {
         children: [
           const Positioned.fill(child: ColoredBox(color: canvas)),
           Positioned(top: -120, right: -120, child: _Blob(color: mint.withOpacity(.95), size: 270)),
-          Positioned(top: 250, left: -150, child: _Blob(color: const Color(0xFFF4C86A).withOpacity(.22), size: 290)),
+          Positioned(bottom: -140, left: -120, child: _Blob(color: const Color(0xFFF4C86A).withOpacity(.22), size: 290)),
           FutureBuilder<_HomeData>(
             future: _load(),
             builder: (context, snapshot) {
@@ -46,7 +46,7 @@ class FriendlyHomeScreen extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
-                return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('Could not load garden data.')));
+                return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Could not load garden data.')));
               }
 
               final data = snapshot.data;
@@ -54,36 +54,29 @@ class FriendlyHomeScreen extends StatelessWidget {
 
               final firstCrop = data.plantableCrops.isEmpty ? null : data.plantableCrops.first;
               final regionName = data.selectedRegion?.name ?? 'Your region';
+              final cards = <Widget>[
+                _TodayPage(regionName: regionName, settings: data.settings, firstCrop: firstCrop),
+                _SowPage(crops: data.plantableCrops.take(8).toList()),
+                const _PrunePage(),
+                const _ToolsPage(),
+                _PickPage(crops: data.recommendedCrops),
+              ];
 
-              return ListView(
-                padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top + 72, 16, 118),
-                children: [
-                  _Hero(regionName: regionName, settings: data.settings),
-                  const SizedBox(height: 18),
-                  _SectionHeader(title: 'Today', label: 'start here'),
-                  const SizedBox(height: 10),
-                  _MainActions(
-                    firstCrop: firstCrop,
-                    onSow: () {
-                      if (firstCrop == null) {
-                        _snack(context, 'No sowing picks for this month.');
-                      } else {
-                        _openCrop(context, firstCrop);
-                      }
-                    },
-                    onPrune: () => _openScreen(context, const PruningGuideScreen()),
-                  ),
-                  const SizedBox(height: 18),
-                  _SectionHeader(title: 'Sow now', label: '${data.plantableCrops.length} crops'),
-                  const SizedBox(height: 10),
-                  _SowScroller(crops: data.plantableCrops.take(8).toList()),
-                  const SizedBox(height: 18),
-                  const _SectionHeader(title: 'Tools', label: 'quick tap'),
-                  const SizedBox(height: 10),
-                  const _ToolStrip(),
-                  const SizedBox(height: 18),
-                  _BeginnerPickCard(crops: data.recommendedCrops),
-                ],
+              return PageView.builder(
+                padEnds: false,
+                controller: PageController(viewportFraction: .88),
+                itemCount: cards.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      index == 0 ? 16 : 8,
+                      MediaQuery.paddingOf(context).top + 72,
+                      index == cards.length - 1 ? 16 : 8,
+                      118,
+                    ),
+                    child: cards[index],
+                  );
+                },
               );
             },
           ),
@@ -120,84 +113,225 @@ class FriendlyHomeScreen extends StatelessWidget {
   }
 }
 
-class _Hero extends StatelessWidget {
-  const _Hero({required this.regionName, required this.settings});
+class _TodayPage extends StatelessWidget {
+  const _TodayPage({required this.regionName, required this.settings, required this.firstCrop});
 
   final String regionName;
   final AppSettings settings;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(34), boxShadow: const [BoxShadow(color: Color(0x24172D22), blurRadius: 32, offset: Offset(0, 18))]),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(34),
-        child: Stack(
-          children: [
-            const Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [FriendlyHomeScreen.leafDark, FriendlyHomeScreen.leaf, FriendlyHomeScreen.moss]),
-                ),
-              ),
-            ),
-            Positioned.fill(child: CustomPaint(painter: _LeafPainter())),
-            Padding(
-              padding: const EdgeInsets.all(22),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _GlassPill(icon: Icons.place_outlined, label: regionName),
-                      const SizedBox(height: 18),
-                      const Text('What should\nI do today?', style: TextStyle(color: Colors.white, fontSize: 34, height: .96, fontWeight: FontWeight.w900, letterSpacing: -1.1)),
-                      const SizedBox(height: 14),
-                      Wrap(spacing: 8, runSpacing: 8, children: [
-                        _GlassPill(icon: Icons.ac_unit_outlined, label: _format(settings.frostRisk)),
-                        _GlassPill(icon: Icons.air_outlined, label: _format(settings.windExposure)),
-                      ]),
-                    ]),
-                  ),
-                  SvgPicture.asset('assets/icons/seedling.svg', width: 80, height: 80),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MainActions extends StatelessWidget {
-  const _MainActions({required this.firstCrop, required this.onSow, required this.onPrune});
-
   final Crop? firstCrop;
-  final VoidCallback onSow;
-  final VoidCallback onPrune;
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.04,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
+    return _HeroPanel(
+      title: 'Swipe your\ngarden',
+      subtitle: 'Quick actions, no scrolling down.',
+      iconAsset: 'assets/icons/seedling.svg',
+      chips: [regionName, _format(settings.frostRisk), _format(settings.windExposure)],
       children: [
-        _BigCard(asset: 'assets/icons/seedling.svg', title: 'Sow', subtitle: firstCrop?.commonName ?? 'No picks', color: FriendlyHomeScreen.leaf, onTap: onSow),
-        _BigCard(asset: 'assets/icons/pruning_shears.svg', title: 'Prune', subtitle: 'Trees & shrubs', color: FriendlyHomeScreen.clay, onTap: onPrune),
+        _ActionRow(
+          iconAsset: 'assets/icons/seedling.svg',
+          title: 'Sow now',
+          subtitle: firstCrop?.commonName ?? 'No picks this month',
+          color: FriendlyHomeScreen.leaf,
+          onTap: () {
+            if (firstCrop == null) {
+              _snack(context, 'No sowing picks for this month.');
+            } else {
+              _openCrop(context, firstCrop!);
+            }
+          },
+        ),
+        const SizedBox(height: 12),
+        _ActionRow(
+          iconAsset: 'assets/icons/pruning_shears.svg',
+          title: 'Prune',
+          subtitle: 'Trees, shrubs, hedges',
+          color: FriendlyHomeScreen.clay,
+          onTap: () => _openScreen(context, const PruningGuideScreen()),
+        ),
       ],
     );
   }
 }
 
-class _BigCard extends StatelessWidget {
-  const _BigCard({required this.asset, required this.title, required this.subtitle, required this.color, required this.onTap});
+class _SowPage extends StatelessWidget {
+  const _SowPage({required this.crops});
 
-  final String asset;
+  final List<Crop> crops;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      title: 'Sow now',
+      label: '${crops.length} crops',
+      iconAsset: 'assets/icons/seedling.svg',
+      child: crops.isEmpty
+          ? const Text('No sowing picks this month.', style: TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700))
+          : Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: crops.map((crop) => _CropChip(crop: crop)).toList(),
+            ),
+    );
+  }
+}
+
+class _PrunePage extends StatelessWidget {
+  const _PrunePage();
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      title: 'Pruning',
+      label: 'guide',
+      iconAsset: 'assets/icons/pruning_shears.svg',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Trees, shrubs, bushes, hedges, berries and vines.', style: TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700, height: 1.35)),
+          const SizedBox(height: 18),
+          _ActionRow(
+            iconAsset: 'assets/icons/pruning_shears.svg',
+            title: 'Open pruning guide',
+            subtitle: 'Season cards + categories',
+            color: FriendlyHomeScreen.clay,
+            onTap: () => _openScreen(context, const PruningGuideScreen()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolsPage extends StatelessWidget {
+  const _ToolsPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      title: 'Tools',
+      label: 'quick access',
+      iconAsset: 'assets/icons/crop_guide.svg',
+      child: Column(
+        children: [
+          _ToolButton(asset: 'assets/icons/crop_guide.svg', label: 'Crop guide', onTap: () => _openScreen(context, const CropGuideScreen())),
+          const SizedBox(height: 10),
+          _ToolButton(asset: 'assets/icons/calendar_leaf.svg', label: 'Calendar', onTap: () => _openScreen(context, const CropCalendarScreen())),
+          const SizedBox(height: 10),
+          _ToolButton(asset: 'assets/icons/task_sprout.svg', label: 'Tasks', onTap: () => _openScreen(context, const WeeklyTasksScreen())),
+        ],
+      ),
+    );
+  }
+}
+
+class _PickPage extends StatelessWidget {
+  const _PickPage({required this.crops});
+
+  final List<Crop> crops;
+
+  @override
+  Widget build(BuildContext context) {
+    final best = crops.isEmpty ? null : crops.first;
+    return _Panel(
+      title: 'Best pick',
+      label: 'easy start',
+      iconAsset: 'assets/icons/weather_frost.svg',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (best == null)
+            const Text('Check sowing picks.', style: TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700))
+          else
+            _ActionRow(
+              iconAsset: 'assets/icons/seedling.svg',
+              title: best.commonName,
+              subtitle: 'Beginner-friendly pick',
+              color: FriendlyHomeScreen.leaf,
+              onTap: () => _openCrop(context, best),
+            ),
+          const SizedBox(height: 18),
+          const Text('Swipe left or right to move between Home sections.', style: TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700, height: 1.35)),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroPanel extends StatelessWidget {
+  const _HeroPanel({required this.title, required this.subtitle, required this.iconAsset, required this.chips, required this.children});
+
+  final String title;
+  final String subtitle;
+  final String iconAsset;
+  final List<String> chips;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(34),
+        boxShadow: const [BoxShadow(color: Color(0x24172D22), blurRadius: 32, offset: Offset(0, 18))],
+        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [FriendlyHomeScreen.leafDark, FriendlyHomeScreen.leaf, FriendlyHomeScreen.moss]),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(child: CustomPaint(painter: _LeafPainter())),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(child: Wrap(spacing: 8, runSpacing: 8, children: chips.take(3).map((chip) => _GlassPill(label: chip)).toList())),
+              SvgPicture.asset(iconAsset, width: 78, height: 78),
+            ]),
+            const Spacer(),
+            Text(title, style: const TextStyle(color: Colors.white, fontSize: 36, height: .96, fontWeight: FontWeight.w900, letterSpacing: -1.1)),
+            const SizedBox(height: 8),
+            Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(.78), fontWeight: FontWeight.w800)),
+            const SizedBox(height: 22),
+            ...children,
+          ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _Panel extends StatelessWidget {
+  const _Panel({required this.title, required this.label, required this.iconAsset, required this.child});
+
+  final String title;
+  final String label;
+  final String iconAsset;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: FriendlyHomeScreen.surface, borderRadius: BorderRadius.circular(34), border: Border.all(color: FriendlyHomeScreen.border), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 24, offset: Offset(0, 12))]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _Pill(label: label),
+            const SizedBox(height: 12),
+            Text(title, style: const TextStyle(color: FriendlyHomeScreen.ink, fontSize: 34, height: 1, fontWeight: FontWeight.w900, letterSpacing: -1.0)),
+          ])),
+          SvgPicture.asset(iconAsset, width: 76, height: 76),
+        ]),
+        const SizedBox(height: 22),
+        child,
+        const Spacer(),
+        const Align(alignment: Alignment.bottomRight, child: _Pill(label: 'swipe →')),
+      ]),
+    );
+  }
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({required this.iconAsset, required this.title, required this.subtitle, required this.color, required this.onTap});
+
+  final String iconAsset;
   final String title;
   final String subtitle;
   final Color color;
@@ -208,17 +342,20 @@ class _BigCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(24),
         onTap: () { HapticFeedback.selectionClick(); onTap(); },
         child: Ink(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(color: FriendlyHomeScreen.surface, borderRadius: BorderRadius.circular(32), border: Border.all(color: color.withOpacity(.28), width: 1.4), boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 24, offset: Offset(0, 12))]),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SvgPicture.asset(asset, width: 62, height: 62),
-            const Spacer(),
-            Text(title, style: const TextStyle(color: FriendlyHomeScreen.ink, fontSize: 23, fontWeight: FontWeight.w900, letterSpacing: -.4)),
-            const SizedBox(height: 6),
-            _Pill(label: subtitle, color: color),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Colors.white.withOpacity(.9), borderRadius: BorderRadius.circular(24), border: Border.all(color: color.withOpacity(.18))),
+          child: Row(children: [
+            SvgPicture.asset(iconAsset, width: 46, height: 46),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.ink, fontWeight: FontWeight.w900, fontSize: 16)),
+              const SizedBox(height: 3),
+              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700)),
+            ])),
+            Icon(Icons.chevron_right, color: color),
           ]),
         ),
       ),
@@ -226,28 +363,8 @@ class _BigCard extends StatelessWidget {
   }
 }
 
-class _SowScroller extends StatelessWidget {
-  const _SowScroller({required this.crops});
-
-  final List<Crop> crops;
-
-  @override
-  Widget build(BuildContext context) {
-    if (crops.isEmpty) return const _Card(child: Text('No sowing picks this month.'));
-    return SizedBox(
-      height: 150,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: crops.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) => _CropCard(crop: crops[index]),
-      ),
-    );
-  }
-}
-
-class _CropCard extends StatelessWidget {
-  const _CropCard({required this.crop});
+class _CropChip extends StatelessWidget {
+  const _CropChip({required this.crop});
 
   final Crop crop;
 
@@ -256,18 +373,15 @@ class _CropCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(999),
         onTap: () => _openCrop(context, crop),
         child: Ink(
-          width: 132,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: FriendlyHomeScreen.surface, borderRadius: BorderRadius.circular(28), border: Border.all(color: FriendlyHomeScreen.border), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))]),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            SvgPicture.asset('assets/icons/seedling.svg', width: 58, height: 58),
-            const SizedBox(height: 10),
-            Text(crop.commonName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.ink, fontWeight: FontWeight.w900, fontSize: 16)),
-            const SizedBox(height: 7),
-            if (crop.frostTender) const _Pill(label: 'protect', color: FriendlyHomeScreen.clay) else const _Pill(label: 'hardy'),
+          padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+          decoration: BoxDecoration(color: FriendlyHomeScreen.mint, borderRadius: BorderRadius.circular(999)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 32, height: 32, alignment: Alignment.center, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: Text(crop.commonName.characters.first.toUpperCase(), style: const TextStyle(color: FriendlyHomeScreen.leaf, fontWeight: FontWeight.w900))),
+            const SizedBox(width: 8),
+            Text(crop.commonName, style: const TextStyle(color: FriendlyHomeScreen.leafDark, fontWeight: FontWeight.w900)),
           ]),
         ),
       ),
@@ -275,28 +389,8 @@ class _CropCard extends StatelessWidget {
   }
 }
 
-class _ToolStrip extends StatelessWidget {
-  const _ToolStrip();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 126,
-      child: ListView(scrollDirection: Axis.horizontal, children: [
-        _ToolCard(asset: 'assets/icons/crop_guide.svg', label: 'Crops', onTap: () => _openScreen(context, const CropGuideScreen())),
-        const SizedBox(width: 12),
-        _ToolCard(asset: 'assets/icons/calendar_leaf.svg', label: 'Calendar', onTap: () => _openScreen(context, const CropCalendarScreen())),
-        const SizedBox(width: 12),
-        _ToolCard(asset: 'assets/icons/task_sprout.svg', label: 'Tasks', onTap: () => _openScreen(context, const WeeklyTasksScreen())),
-        const SizedBox(width: 12),
-        _ToolCard(asset: 'assets/icons/pruning_shears.svg', label: 'Prune', onTap: () => _openScreen(context, const PruningGuideScreen())),
-      ]),
-    );
-  }
-}
-
-class _ToolCard extends StatelessWidget {
-  const _ToolCard({required this.asset, required this.label, required this.onTap});
+class _ToolButton extends StatelessWidget {
+  const _ToolButton({required this.asset, required this.label, required this.onTap});
 
   final String asset;
   final String label;
@@ -304,45 +398,7 @@ class _ToolCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(26),
-        onTap: () { HapticFeedback.selectionClick(); onTap(); },
-        child: Ink(
-          width: 112,
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(color: FriendlyHomeScreen.surface, borderRadius: BorderRadius.circular(26), border: Border.all(color: FriendlyHomeScreen.border)),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            SvgPicture.asset(asset, width: 52, height: 52),
-            const SizedBox(height: 9),
-            Text(label, style: const TextStyle(color: FriendlyHomeScreen.ink, fontWeight: FontWeight.w900)),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-class _BeginnerPickCard extends StatelessWidget {
-  const _BeginnerPickCard({required this.crops});
-
-  final List<Crop> crops;
-
-  @override
-  Widget build(BuildContext context) {
-    final best = crops.isEmpty ? null : crops.first;
-    return _Card(
-      child: Row(children: [
-        SvgPicture.asset('assets/icons/weather_frost.svg', width: 54, height: 54),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Best beginner pick', style: TextStyle(color: FriendlyHomeScreen.ink, fontWeight: FontWeight.w900, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text(best?.commonName ?? 'Check sowing picks above', style: const TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700)),
-        ])),
-      ]),
-    );
+    return _ActionRow(iconAsset: asset, title: label, subtitle: 'Open', color: FriendlyHomeScreen.leaf, onTap: onTap);
   }
 }
 
@@ -378,37 +434,6 @@ class _CropSheet extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.label});
-
-  final String title;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(children: [
-      Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -.3))),
-      _Pill(label: label),
-    ]);
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.child, this.padding = const EdgeInsets.all(16)});
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(color: FriendlyHomeScreen.surface, borderRadius: BorderRadius.circular(28), border: Border.all(color: FriendlyHomeScreen.border), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 22, offset: Offset(0, 10))]),
-      child: child,
-    );
-  }
-}
-
 class _Pill extends StatelessWidget {
   const _Pill({required this.label, this.color = FriendlyHomeScreen.leaf});
 
@@ -426,9 +451,8 @@ class _Pill extends StatelessWidget {
 }
 
 class _GlassPill extends StatelessWidget {
-  const _GlassPill({required this.icon, required this.label});
+  const _GlassPill({required this.label});
 
-  final IconData icon;
   final String label;
 
   @override
@@ -436,11 +460,7 @@ class _GlassPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
       decoration: BoxDecoration(color: Colors.white.withOpacity(.15), borderRadius: BorderRadius.circular(999), border: Border.all(color: Colors.white.withOpacity(.20))),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, color: Colors.white, size: 16),
-        const SizedBox(width: 7),
-        Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
-      ]),
+      child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
     );
   }
 }

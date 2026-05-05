@@ -4,7 +4,7 @@ This file tracks project progress in plain English so the current state is visib
 
 ## Current status
 
-The repo now contains the planning documents, expanded bundled seed data, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, a searchable/filterable crop guide, a working local garden bed planner UI, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and the first local notification foundation.
+The repo now contains the planning documents, expanded bundled seed data, Python data validation tooling, a Flutter scaffold, a local JSON data layer, the first usable local setup flow, a garden dashboard, a searchable/filterable crop guide, a working local garden bed planner UI, crop-to-bed planting with editable planting details and estimated harvest windows, navigable crop detail pages, an offline pest/problem guide, generated weekly task recommendations, and the first local notification foundation.
 
 GitHub Pages preview work has been removed for now. The app will be tested locally on a PC with Flutter tooling.
 
@@ -51,6 +51,31 @@ Implemented:
 - Android emulator/device run command with `flutter run`
 - Removed GitHub Pages preview instructions
 - Removed automatic GitHub Pages deployment workflow
+
+### Python data validation tooling
+
+Added:
+
+```text
+tools/validate_data.py
+tools/README.md
+```
+
+Updated:
+
+```text
+README.md
+```
+
+Implemented:
+
+- Standard-library Python data validation script
+- Validates crop data structure, IDs, harvest ranges, spacing, and booleans
+- Validates region data structure and IDs
+- Validates planting rule month ranges and crop/region references
+- Validates pest/problem lists and crop references
+- Validates task rule month ranges, priorities, and crop/region references
+- Documents how to run the validator locally
 
 ### Garden dashboard
 
@@ -439,10 +464,11 @@ Goal:
 ## Next planned work
 
 1. Test locally on PC
-2. Fix any compile/analyzer issues
-3. Harden local notifications after device testing
-4. Add pest guide filtering/search
-5. Add app tests once the first workflow is stable
+2. Run `python tools/validate_data.py`
+3. Fix any data validation issues
+4. Fix any Flutter compile/analyzer issues
+5. Harden local notifications after device testing
+6. Add pest guide filtering/search
 
 ## GitHub issues created
 

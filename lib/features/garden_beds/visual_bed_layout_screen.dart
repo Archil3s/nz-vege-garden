@@ -27,7 +27,6 @@ class VisualBedLayoutScreen extends StatefulWidget {
 class _VisualBedLayoutScreenState extends State<VisualBedLayoutScreen> {
   final _dataRepository = const GardenDataRepository();
   final _settingsRepository = const AppSettingsRepository();
-
   late Future<_LayoutData> _layoutFuture;
   int _peopleToFeed = 2;
 
@@ -59,7 +58,6 @@ class _VisualBedLayoutScreenState extends State<VisualBedLayoutScreen> {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (snapshot.hasError) {
             return Center(
               child: Padding(
@@ -85,8 +83,6 @@ class _VisualBedLayoutScreenState extends State<VisualBedLayoutScreen> {
                   cropName: planting.cropName,
                   spacingCm: crop?.spacingCm ?? 30,
                   plantCount: planting.plantCount,
-                  source: _LayoutZoneSource.saved,
-                  icon: _iconForStatus(planting.status),
                 );
               })
               .toList(growable: false);
@@ -115,8 +111,8 @@ class _VisualBedLayoutScreenState extends State<VisualBedLayoutScreen> {
                 zones: displayZones,
                 title: usingGenerated ? 'Suggested garden design' : 'Current garden design',
                 description: usingGenerated
-                    ? 'This generated layout draws the estimated number of individual plants that fit by spacing.'
-                    : 'This map draws the saved plant count for each active crop in this bed.',
+                    ? 'Generated plants are shown as scaled SVG crop icons based on spacing and bed density.'
+                    : 'Saved plant counts are shown as individual scaled SVG crop icons.',
               ),
               const SizedBox(height: 16),
               _SpacingGuideCard(zones: displayZones),
@@ -151,8 +147,9 @@ class _VisualBedLayoutScreenState extends State<VisualBedLayoutScreen> {
     }).toList(growable: false)
       ..sort((a, b) {
         final scoreComparison = b.score.compareTo(a.score);
-        if (scoreComparison != 0) return scoreComparison;
-        return a.crop.commonName.compareTo(b.crop.commonName);
+        return scoreComparison == 0
+            ? a.crop.commonName.compareTo(b.crop.commonName)
+            : scoreComparison;
       });
 
     final targetZones = peopleToFeed <= 2
@@ -162,29 +159,19 @@ class _VisualBedLayoutScreenState extends State<VisualBedLayoutScreen> {
             : 5;
     final selected = scored.take(targetZones).toList(growable: false);
     final zoneArea = _zoneAreaSquareMeters(selected.length);
-
     final zones = selected.map((item) {
-      final plantCount = _estimatedPlantCount(
-        crop: item.crop,
-        zoneAreaSquareMeters: zoneArea,
-        peopleToFeed: peopleToFeed,
-      );
-
       return _LayoutZone(
         title: item.crop.commonName,
         subtitle: _formatMethod(item.rule.method),
         cropName: item.crop.commonName,
         spacingCm: item.crop.spacingCm,
-        plantCount: plantCount,
-        source: _LayoutZoneSource.generated,
-        icon: item.rule.method == 'transplant' ? Icons.move_down_outlined : Icons.grass_outlined,
+        plantCount: _estimatedPlantCount(item.crop, zoneArea, peopleToFeed),
       );
     }).toList(growable: false);
 
     return _GeneratedBedPlan(
       monthName: _monthName(now.month),
       zones: zones,
-      suggestions: selected,
     );
   }
 
@@ -194,18 +181,12 @@ class _VisualBedLayoutScreenState extends State<VisualBedLayoutScreen> {
     return area / zoneCount;
   }
 
-  int _estimatedPlantCount({
-    required Crop crop,
-    required double? zoneAreaSquareMeters,
-    required int peopleToFeed,
-  }) {
+  int _estimatedPlantCount(Crop crop, double? zoneAreaSquareMeters, int peopleToFeed) {
     if (zoneAreaSquareMeters == null || crop.spacingCm <= 0) {
       return math.max(1, peopleToFeed);
     }
-
     final spacingMeters = crop.spacingCm / 100;
-    final plantArea = spacingMeters * spacingMeters;
-    final fitCount = (zoneAreaSquareMeters / plantArea).floor();
+    final fitCount = (zoneAreaSquareMeters / (spacingMeters * spacingMeters)).floor();
     return fitCount.clamp(1, 60);
   }
 
@@ -218,17 +199,6 @@ class _VisualBedLayoutScreenState extends State<VisualBedLayoutScreen> {
     if (crop.daysToHarvestMax <= 60) score += 2;
     if (crop.category == 'herb') score += 1;
     return score;
-  }
-
-  IconData _iconForStatus(String status) {
-    return switch (status) {
-      'planned' => Icons.event_note_outlined,
-      'sown' => Icons.grass_outlined,
-      'transplanted' => Icons.move_down_outlined,
-      'growing' => Icons.eco_outlined,
-      'harvesting' => Icons.shopping_basket_outlined,
-      _ => Icons.eco_outlined,
-    };
   }
 
   String _formatMethod(String value) {
@@ -294,48 +264,20 @@ class _LayoutHeroCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Preview a literal plant-count layout using SVG crop icons and spacing data.',
+                'Preview individual plants using scaled SVG crop icons.',
                 style: TextStyle(color: scheme.onPrimaryContainer),
               ),
               const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _HeroChip(icon: Icons.straighten_outlined, label: dimensions),
-                  _HeroChip(icon: Icons.wb_sunny_outlined, label: _formatValue(bed.sunExposure)),
-                  _HeroChip(icon: Icons.air_outlined, label: _formatValue(bed.windExposure)),
-                ],
+              Chip(
+                avatar: const Icon(Icons.straighten_outlined, size: 18),
+                label: Text(dimensions),
+                backgroundColor: scheme.surface.withOpacity(0.72),
+                side: BorderSide.none,
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  String _formatValue(String value) {
-    return value
-        .split('_')
-        .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
-        .join(' ');
-  }
-}
-
-class _HeroChip extends StatelessWidget {
-  const _HeroChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Chip(
-      avatar: Icon(icon, size: 18),
-      label: Text(label),
-      backgroundColor: scheme.surface.withOpacity(0.72),
-      side: BorderSide.none,
     );
   }
 }
@@ -364,8 +306,6 @@ class _PeopleSelectorCard extends StatelessWidget {
                 Badge(label: Text('$peopleToFeed'), child: const Icon(Icons.person_outline)),
               ],
             ),
-            const SizedBox(height: 8),
-            Text('Plan this bed for $peopleToFeed ${peopleToFeed == 1 ? 'person' : 'people'}.'),
             Slider(
               value: peopleToFeed.toDouble(),
               min: 1,
@@ -399,28 +339,14 @@ class _GeneratedPlanCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.auto_awesome_outlined, color: Theme.of(context).colorScheme.tertiary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '${plan.monthName} seasonal design idea',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-              ],
+            Text(
+              '${plan.monthName} seasonal design idea',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             if (plan.zones.isEmpty)
               const Text('No seasonal crop suggestions found for this month and region yet.')
-            else ...[
-              Text(
-                showingSavedPlantings
-                    ? 'Your map shows saved crops. These are extra ideas for another bed.'
-                    : 'Your bed has no active crops, so the map below uses this generated design.',
-              ),
-              const SizedBox(height: 12),
+            else
               ...plan.zones.map((zone) => ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
@@ -429,7 +355,6 @@ class _GeneratedPlanCard extends StatelessWidget {
                     title: Text('${zone.title} × ${zone.plantCount}'),
                     subtitle: Text('${zone.subtitle} • ${zone.spacingCm} cm spacing'),
                   )),
-            ],
           ],
         ),
       ),
@@ -463,54 +388,42 @@ class _VisualBedCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.map_outlined, color: scheme.primary),
-                const SizedBox(width: 12),
-                Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
-              ],
-            ),
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(description, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 16),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [scheme.surfaceContainerHighest, scheme.surface],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: scheme.shadow.withOpacity(0.08),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: AspectRatio(
-                  aspectRatio: aspectRatio,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: Stack(
+            AspectRatio(
+              aspectRatio: aspectRatio,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Stack(
                       children: [
-                        Positioned.fill(child: CustomPaint(painter: _BedBackgroundPainter(colorScheme: scheme))),
-                        ...markers.map((marker) => Positioned(
-                              left: marker.xFraction * 1000,
-                              top: marker.yFraction * 1000,
-                              child: FractionalTranslation(
-                                translation: const Offset(-0.5, -0.5),
-                                child: _PlantMarker(marker: marker),
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _BedBackgroundPainter(colorScheme: scheme),
+                          ),
+                        ),
+                        ...markers.map(
+                          (marker) => Positioned(
+                            left: marker.xFraction * constraints.maxWidth - marker.iconSize / 2,
+                            top: marker.yFraction * constraints.maxHeight - marker.iconSize / 2,
+                            width: marker.iconSize,
+                            height: marker.iconSize,
+                            child: Tooltip(
+                              message: marker.title,
+                              child: GeneratedPlantIcon(
+                                cropName: marker.cropName,
+                                size: marker.iconSize,
                               ),
-                            )),
-                        if (markers.isEmpty)
-                          const Center(child: Text('No crops yet')),
+                            ),
+                          ),
+                        ),
+                        if (markers.isEmpty) const Center(child: Text('No crops yet')),
                       ],
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -539,6 +452,16 @@ class _VisualBedCard extends StatelessWidget {
     final markers = <_PlantMarkerData>[];
     final columns = zones.length == 1 ? 1 : math.min(2, zones.length);
     final rows = (zones.length / columns).ceil();
+    final totalPlants = zones.fold<int>(0, (sum, zone) => sum + zone.plantCount.clamp(1, 120));
+    final densityScale = totalPlants > 90
+        ? 0.58
+        : totalPlants > 60
+            ? 0.68
+            : totalPlants > 35
+                ? 0.78
+                : totalPlants > 18
+                    ? 0.88
+                    : 1.0;
 
     for (var zoneIndex = 0; zoneIndex < zones.length; zoneIndex++) {
       final zone = zones[zoneIndex];
@@ -551,17 +474,18 @@ class _VisualBedCard extends StatelessWidget {
       final count = zone.plantCount.clamp(1, 120);
       final gridColumns = math.max(1, math.sqrt(count * zoneWidth / zoneHeight).ceil());
       final gridRows = (count / gridColumns).ceil();
+      final spacingSize = (zone.spacingCm / 45 * 22).clamp(10.0, 26.0).toDouble();
+      final iconSize = (spacingSize * densityScale).clamp(8.0, 24.0).toDouble();
 
       for (var i = 0; i < count; i++) {
         final markerColumn = i % gridColumns;
         final markerRow = i ~/ gridColumns;
-        final x = zoneLeft + ((markerColumn + 1) / (gridColumns + 1)) * zoneWidth;
-        final y = zoneTop + ((markerRow + 1) / (gridRows + 1)) * zoneHeight;
         markers.add(_PlantMarkerData(
           cropName: zone.cropName,
           title: zone.title,
-          xFraction: x.clamp(0.06, 0.94),
-          yFraction: y.clamp(0.08, 0.92),
+          xFraction: (zoneLeft + ((markerColumn + 1) / (gridColumns + 1)) * zoneWidth).clamp(0.05, 0.95),
+          yFraction: (zoneTop + ((markerRow + 1) / (gridRows + 1)) * zoneHeight).clamp(0.07, 0.93),
+          iconSize: iconSize,
         ));
       }
     }
@@ -577,36 +501,6 @@ class _VisualBedCard extends StatelessWidget {
   }
 }
 
-class _PlantMarker extends StatelessWidget {
-  const _PlantMarker({required this.marker});
-
-  final _PlantMarkerData marker;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: marker.title,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withOpacity(0.75),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).colorScheme.shadow.withOpacity(0.12),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(2),
-          child: GeneratedPlantIcon(cropName: marker.cropName, size: 24),
-        ),
-      ),
-    );
-  }
-}
-
 class _BedBackgroundPainter extends CustomPainter {
   const _BedBackgroundPainter({required this.colorScheme});
 
@@ -614,22 +508,16 @@ class _BedBackgroundPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bedRect = Offset.zero & size;
-    final roundedBed = RRect.fromRectAndRadius(bedRect, const Radius.circular(18));
+    final rect = Offset.zero & size;
+    final roundedBed = RRect.fromRectAndRadius(rect, const Radius.circular(18));
     final soilPaint = Paint()
       ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
         colors: [
           colorScheme.surfaceContainerHighest,
           colorScheme.secondaryContainer.withOpacity(0.55),
           colorScheme.surface,
         ],
-      ).createShader(bedRect);
-    final borderPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..color = colorScheme.outline;
+      ).createShader(rect);
 
     canvas.drawRRect(roundedBed, soilPaint);
 
@@ -637,10 +525,16 @@ class _BedBackgroundPainter extends CustomPainter {
       ..color = colorScheme.outlineVariant.withOpacity(0.22)
       ..strokeWidth = 1;
     for (var y = 22.0; y < size.height; y += 22.0) {
-      canvas.drawLine(Offset(12, y), Offset(size.width - 12, y + math.sin(y) * 1.6), linePaint);
+      canvas.drawLine(Offset(12, y), Offset(size.width - 12, y), linePaint);
     }
 
-    canvas.drawRRect(roundedBed.deflate(1), borderPaint);
+    canvas.drawRRect(
+      roundedBed.deflate(1),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = colorScheme.outline,
+    );
   }
 
   @override
@@ -691,7 +585,7 @@ class _DesignNoteCard extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.all(16),
         child: Text(
-          'The visual map now represents individual plants, not only crop zones. A later version can add exact drag placement and save coordinates, but this version already respects saved plant counts and generated spacing estimates.',
+          'The visual map uses individual SVG crop icons. Tightly spaced or high-density plantings are drawn smaller so the bed is not visually overrepresented.',
         ),
       ),
     );
@@ -707,11 +601,10 @@ class _LayoutData {
 }
 
 class _GeneratedBedPlan {
-  const _GeneratedBedPlan({required this.monthName, required this.zones, required this.suggestions});
+  const _GeneratedBedPlan({required this.monthName, required this.zones});
 
   final String monthName;
   final List<_LayoutZone> zones;
-  final List<_ScoredSeasonalCrop> suggestions;
 }
 
 class _ScoredSeasonalCrop {
@@ -729,8 +622,6 @@ class _LayoutZone {
     required this.cropName,
     required this.spacingCm,
     required this.plantCount,
-    required this.source,
-    required this.icon,
   });
 
   final String title;
@@ -738,8 +629,6 @@ class _LayoutZone {
   final String cropName;
   final int spacingCm;
   final int plantCount;
-  final _LayoutZoneSource source;
-  final IconData icon;
 }
 
 class _PlantMarkerData {
@@ -748,15 +637,15 @@ class _PlantMarkerData {
     required this.title,
     required this.xFraction,
     required this.yFraction,
+    required this.iconSize,
   });
 
   final String cropName;
   final String title;
   final double xFraction;
   final double yFraction;
+  final double iconSize;
 }
-
-enum _LayoutZoneSource { saved, generated }
 
 String _monthName(int month) {
   return const [

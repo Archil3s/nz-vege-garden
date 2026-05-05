@@ -8,6 +8,7 @@ import 'add_bed_planting_screen.dart';
 import 'add_garden_bed_screen.dart';
 import 'edit_bed_planting_screen.dart';
 import 'edit_garden_bed_screen.dart';
+import 'generate_garden_bed_screen.dart';
 import 'visual_bed_layout_screen.dart';
 
 class GardenBedsScreen extends StatefulWidget {
@@ -39,6 +40,16 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
     setState(() {
       _gardenBedsFuture = _loadGardenBedsData();
     });
+  }
+
+  Future<void> _openGenerateGardenBedScreen() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => const GenerateGardenBedScreen(),
+      ),
+    );
+
+    _reloadGardenBeds();
   }
 
   Future<void> _openAddGardenBedScreen() async {
@@ -222,15 +233,20 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
           if (beds.isEmpty) {
             return _EmptyGardenBedsState(
               onAddPressed: _openAddGardenBedScreen,
+              onGeneratePressed: _openGenerateGardenBedScreen,
             );
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: beds.length,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
+            itemCount: beds.length + 1,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
-              final bed = beds[index];
+              if (index == 0) {
+                return _GenerateBedPromptCard(onGeneratePressed: _openGenerateGardenBedScreen);
+              }
+
+              final bed = beds[index - 1];
               final bedPlantings = plantings
                   .where((planting) => planting.bedId == bed.id)
                   .toList(growable: false);
@@ -269,9 +285,13 @@ class _GardenBedsScreenState extends State<GardenBedsScreen> {
 }
 
 class _EmptyGardenBedsState extends StatelessWidget {
-  const _EmptyGardenBedsState({required this.onAddPressed});
+  const _EmptyGardenBedsState({
+    required this.onAddPressed,
+    required this.onGeneratePressed,
+  });
 
   final VoidCallback onAddPressed;
+  final VoidCallback onGeneratePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -294,14 +314,67 @@ class _EmptyGardenBedsState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Create raised beds, pots, greenhouse areas, or open garden beds to start planning your home vegetable garden.',
+              'Create a bed manually or generate a seasonal bed design from your local planting data.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
+              onPressed: onGeneratePressed,
+              icon: const Icon(Icons.auto_awesome_outlined),
+              label: const Text('Generate starter bed'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
               onPressed: onAddPressed,
               icon: const Icon(Icons.add),
-              label: const Text('Add first bed'),
+              label: const Text('Add bed manually'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GenerateBedPromptCard extends StatelessWidget {
+  const _GenerateBedPromptCard({required this.onGeneratePressed});
+
+  final VoidCallback onGeneratePressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.auto_awesome_outlined,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Generate a seasonal bed',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Pick a goal, size, and style. The app creates crops, counts, and opens the visual design canvas.',
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: onGeneratePressed,
+                    icon: const Icon(Icons.auto_awesome_outlined),
+                    label: const Text('Generate bed'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -400,6 +473,10 @@ class _GardenBedCard extends StatelessWidget {
                 _InfoChip(
                   icon: Icons.air_outlined,
                   label: _formatValue(bed.windExposure),
+                ),
+                _InfoChip(
+                  icon: Icons.palette_outlined,
+                  label: _formatValue(bed.layoutStyle),
                 ),
                 if (bed.lengthCm != null && bed.widthCm != null)
                   _InfoChip(
@@ -509,6 +586,7 @@ class _GardenBedCard extends StatelessWidget {
   String _plantingSubtitle(GardenBedPlanting planting) {
     final parts = <String>[
       _formatValue(planting.status),
+      '${planting.plantCount} plants',
       'Planted ${_formatDate(planting.plantedDate)}',
     ];
 

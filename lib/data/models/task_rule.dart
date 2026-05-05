@@ -44,6 +44,32 @@ class TaskRule {
     );
   }
 
+  factory TaskRule.generated({
+    required String id,
+    required String title,
+    required String description,
+    required String taskType,
+    required int startMonth,
+    required int endMonth,
+    required List<String> cropIds,
+    required int priority,
+  }) {
+    return TaskRule(
+      id: id,
+      title: title,
+      description: description,
+      taskType: taskType,
+      startMonth: startMonth,
+      endMonth: endMonth,
+      regionId: 'all',
+      cropIds: cropIds,
+      gardenTypes: const [],
+      frostRisks: const [],
+      windExposures: const [],
+      priority: priority,
+    );
+  }
+
   bool appliesToMonth(int month) {
     if (startMonth <= endMonth) {
       return month >= startMonth && month <= endMonth;

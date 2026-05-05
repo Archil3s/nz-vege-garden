@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/crop_rotation_service.dart';
 import '../../data/garden_bed_planting_repository.dart';
 import '../../data/garden_data_repository.dart';
 import '../../data/models/crop.dart';
@@ -32,6 +33,7 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
   final _plantCountController = TextEditingController(text: '1');
   final _dataRepository = const GardenDataRepository();
   final _plantingRepository = const GardenBedPlantingRepository();
+  final _rotationService = const CropRotationService();
 
   String? _selectedCropId;
   String _status = 'planned';
@@ -137,8 +139,8 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
       appBar: AppBar(
         title: Text('Add crop to ${widget.bed.name}'),
       ),
-      body: FutureBuilder<List<Crop>>(
-        future: _dataRepository.loadCrops(),
+      body: FutureBuilder<_AddPlantingData>(
+        future: _loadAddPlantingData(),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -153,11 +155,23 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
             );
           }
 
-          final crops = snapshot.data ?? const <Crop>[];
+          final data = snapshot.data;
+          final crops = data?.crops ?? const <Crop>[];
+          final plantings = data?.plantings ?? const <GardenBedPlanting>[];
           final selectedCrop = _selectedCropId == null
               ? null
               : crops.where((crop) => crop.id == _selectedCropId).firstOrNull;
           final estimatedMax = selectedCrop == null ? null : _estimateMaxPlants(selectedCrop);
+          final rotationRisk = selectedCrop == null
+              ? null
+              : _rotationService.rotationRiskForCropInBed(
+                  cropId: selectedCrop.id,
+                  bedId: widget.bed.id,
+                  plantings: plantings,
+                );
+          final selectedFamily = selectedCrop == null
+              ? null
+              : _rotationService.familyForCropId(selectedCrop.id);
 
           return Form(
             key: _formKey,
@@ -194,6 +208,12 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
                         'to ${_formatDate(_plantedDate.add(Duration(days: selectedCrop.daysToHarvestMax)))}',
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  _RotationAdviceCard(
+                    family: selectedFamily,
+                    risk: rotationRisk,
+                    bedName: widget.bed.name,
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -273,6 +293,13 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
     );
   }
 
+  Future<_AddPlantingData> _loadAddPlantingData() async {
+    final crops = await _dataRepository.loadCrops();
+    final plantings = await _plantingRepository.loadPlantings();
+
+    return _AddPlantingData(crops: crops, plantings: plantings);
+  }
+
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
@@ -283,6 +310,50 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
         .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
   }
+}
+
+class _RotationAdviceCard extends StatelessWidget {
+  const _RotationAdviceCard({
+    required this.family,
+    required this.risk,
+    required this.bedName,
+  });
+
+  final CropFamilyInfo? family;
+  final CropFamilyInfo? risk;
+  final String bedName;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasRisk = risk != null;
+
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          hasRisk ? Icons.warning_amber_outlined : Icons.sync_alt_outlined,
+          color: hasRisk ? Theme.of(context).colorScheme.error : null,
+        ),
+        title: Text(hasRisk ? 'Rotation caution' : 'Rotation family'),
+        subtitle: Text(
+          hasRisk
+              ? '$bedName has already had ${risk!.label.toLowerCase()}. ${risk!.shortAdvice}'
+              : family == null
+                  ? 'No crop family advice found for this crop yet.'
+                  : '${family!.label}: ${family!.shortAdvice}',
+        ),
+      ),
+    );
+  }
+}
+
+class _AddPlantingData {
+  const _AddPlantingData({
+    required this.crops,
+    required this.plantings,
+  });
+
+  final List<Crop> crops;
+  final List<GardenBedPlanting> plantings;
 }
 
 extension _FirstOrNullExtension<T> on Iterable<T> {

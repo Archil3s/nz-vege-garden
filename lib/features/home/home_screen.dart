@@ -45,19 +45,34 @@ class HomeScreen extends StatelessWidget {
           final regionName = data.selectedRegion?.name ?? 'Unknown region';
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
             children: [
               Text(
                 'Garden dashboard',
-                style: Theme.of(context).textTheme.headlineMedium,
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-              const SizedBox(height: 8),
-              Text('Region: $regionName'),
-              const SizedBox(height: 4),
-              Text(
-                'Frost: ${_formatValue(data.settings.frostRisk)} • '
-                'Wind: ${_formatValue(data.settings.windExposure)} • '
-                'Garden: ${_formatValue(data.settings.gardenType)}',
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _SetupChip(
+                    icon: Icons.place_outlined,
+                    label: regionName,
+                  ),
+                  _SetupChip(
+                    icon: Icons.ac_unit_outlined,
+                    label: 'Frost: ${_formatValue(data.settings.frostRisk)}',
+                  ),
+                  _SetupChip(
+                    icon: Icons.air_outlined,
+                    label: 'Wind: ${_formatValue(data.settings.windExposure)}',
+                  ),
+                  _SetupChip(
+                    icon: Icons.yard_outlined,
+                    label: _formatValue(data.settings.gardenType),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               _SummaryCards(data: data),
@@ -84,7 +99,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                 )
               else
-                ...data.plantableCrops.map(
+                ...data.plantableCrops.take(8).map(
                   (crop) => Card(
                     child: ListTile(
                       title: Text(crop.commonName),
@@ -224,6 +239,25 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+class _SetupChip extends StatelessWidget {
+  const _SetupChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      avatar: Icon(icon, size: 18),
+      label: Text(label),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
 class _SummaryCards extends StatelessWidget {
   const _SummaryCards({required this.data});
 
@@ -231,30 +265,28 @@ class _SummaryCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 1.05,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
       children: [
-        Expanded(
-          child: _SummaryCard(
-            icon: Icons.yard_outlined,
-            label: 'Beds',
-            value: data.beds.length.toString(),
-          ),
+        _SummaryCard(
+          icon: Icons.yard_outlined,
+          label: 'Beds',
+          value: data.beds.length.toString(),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _SummaryCard(
-            icon: Icons.eco_outlined,
-            label: 'Plantings',
-            value: data.plantings.length.toString(),
-          ),
+        _SummaryCard(
+          icon: Icons.eco_outlined,
+          label: 'Plantings',
+          value: data.plantings.length.toString(),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _SummaryCard(
-            icon: Icons.shopping_basket_outlined,
-            label: 'Ready',
-            value: data.harvestReadyPlantings.length.toString(),
-          ),
+        _SummaryCard(
+          icon: Icons.shopping_basket_outlined,
+          label: 'Ready',
+          value: data.harvestReadyPlantings.length.toString(),
         ),
       ],
     );
@@ -276,16 +308,22 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon),
-            const SizedBox(height: 8),
+            Icon(icon, size: 24),
+            const SizedBox(height: 6),
             Text(
               value,
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            Text(label),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
         ),
       ),

@@ -1,24 +1,161 @@
 import 'package:flutter/material.dart';
 
-import '../../data/crop_rotation_service.dart';
-import '../../data/garden_bed_planting_repository.dart';
-import '../../data/garden_bed_repository.dart';
+import '../../data/app_settings_repository.dart';
 import '../../data/garden_data_repository.dart';
+import '../../data/models/app_settings.dart';
 import '../../data/models/crop.dart';
-import '../../data/models/garden_bed.dart';
-import '../../data/models/garden_bed_planting.dart';
+import '../../data/models/nz_region.dart';
+import '../../data/models/task_rule.dart';
+import '../../data/weekly_task_service.dart';
 
-class InsightsScreen extends StatelessWidget {
+class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
 
-  static const _soonWindowDays = 14;
+  @override
+  State<InsightsScreen> createState() => _InsightsScreenState();
+}
+
+class _InsightsScreenState extends State<InsightsScreen> {
+  final _settingsRepository = const AppSettingsRepository();
+  final _dataRepository = const GardenDataRepository();
+  final _taskService = const WeeklyTaskService();
+
+  late final Future<_InsightsData> _insightsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _insightsFuture = _loadInsightsData();
+  }
+
+  Future<_InsightsData> _loadInsightsData() async {
+    final settings = await _settingsRepository.loadSettings();
+    final regions = await _dataRepository.loadRegions();
+    final crops = await _dataRepository.cropsForMonthAndRegion(
+      month: DateTime.now().month,
+      regionId: settings.regionId,
+    );
+    final tasks = await _taskService.generateTasks();
+
+    final selectedRegion = _firstWhereOrNull<NzRegion>(
+      regions,
+      (region) => region.id == settings.regionId,
+    );
+
+    final beginnerCrops = crops.where((crop) => crop.beginnerFriendly).toList(growable: false);
+    final containerCrops = crops.where((crop) => crop.containerFriendly).toList(growable: false);
+    final frostTenderCrops = crops.where((crop) => crop.frostTender).toList(growable: false);
+    final frostSuitableCrops = crops.where((crop) => !crop.frostTender).toList(growable: false);
+
+    return _InsightsData(
+      settings: settings,
+      selectedRegion: selectedRegion,
+      plantableCrops: crops,
+      beginnerCrops: beginnerCrops,
+      containerCrops: containerCrops,
+      frostTenderCrops: frostTenderCrops,
+      frostSuitableCrops: frostSuitableCrops,
+      priorityTasks: tasks.take(4).toList(growable: false),
+      nextActions: _buildNextActions(
+        settings: settings,
+        plantableCrops: crops,
+        beginnerCrops: beginnerCrops,
+        containerCrops: containerCrops,
+        frostTenderCrops: frostTenderCrops,
+        frostSuitableCrops: frostSuitableCrops,
+        tasks: tasks,
+      ),
+    );
+  }
+
+  List<_NextAction> _buildNextActions({
+    required AppSettings settings,
+    required List<Crop> plantableCrops,
+    required List<Crop> beginnerCrops,
+    required List<Crop> containerCrops,
+    required List<Crop> frostTenderCrops,
+    required List<Crop> frostSuitableCrops,
+    required List<TaskRule> tasks,
+  }) {
+    final actions = <_NextAction>[];
+
+    if (plantableCrops.isEmpty) {
+      actions.add(
+        const _NextAction(
+          icon: Icons.calendar_month_outlined,
+          title: 'Check another month',
+          description: 'No crops match your saved region for this month. Use the crop calendar to plan ahead.',
+        ),
+      );
+    }
+
+    if (beginnerCrops.isNotEmpty) {
+      actions.add(
+        _NextAction(
+          icon: Icons.thumb_up_alt_outlined,
+          title: 'Start with reliable crops',
+          description: '${beginnerCrops.length} beginner-friendly crops are suitable for this month.',
+        ),
+      );
+    }
+
+    if (settings.gardenType == 'container' && containerCrops.isNotEmpty) {
+      actions.add(
+        _NextAction(
+          icon: Icons.inventory_2_outlined,
+          title: 'Use container-friendly crops',
+          description: '${containerCrops.length} crops suit pots or containers in the current planting window.',
+        ),
+      );
+    }
+
+    if (settings.frostRisk == 'high' && frostSuitableCrops.isNotEmpty) {
+      actions.add(
+        _NextAction(
+          icon: Icons.ac_unit_outlined,
+          title: 'Prefer frost-safer choices',
+          description: '${frostSuitableCrops.length} current crops are less frost tender for your setup.',
+        ),
+      );
+    } else if (frostTenderCrops.isNotEmpty) {
+      actions.add(
+        _NextAction(
+          icon: Icons.health_and_safety_outlined,
+          title: 'Watch frost-tender crops',
+          description: '${frostTenderCrops.length} current crops may need protection in cold snaps.',
+        ),
+      );
+    }
+
+    if (tasks.isNotEmpty) {
+      actions.add(
+        _NextAction(
+          icon: Icons.checklist_outlined,
+          title: 'Review this week’s jobs',
+          description: '${tasks.length} local task suggestions match your saved setup.',
+        ),
+      );
+    }
+
+    if (actions.isEmpty) {
+      actions.add(
+        const _NextAction(
+          icon: Icons.eco_outlined,
+          title: 'Plan ahead',
+          description: 'Use the crop guide and calendar to prepare for upcoming planting windows.',
+        ),
+      );
+    }
+
+    return actions.take(5).toList(growable: false);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Garden insights')),
       body: FutureBuilder<_InsightsData>(
-        future: _loadInsightsData(),
+        future: _insightsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -38,25 +175,25 @@ class InsightsScreen extends StatelessWidget {
             return const Center(child: Text('No insight data found.'));
           }
 
+          final regionName = data.selectedRegion?.name ?? _formatValue(data.settings.regionId);
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               Text(
-                'What is happening in your garden',
+                '${_monthName(DateTime.now().month)} garden insights',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Local insights based on saved beds, planted crops, spacing, harvest windows, rotation families, and today’s date.',
+              Text(
+                'Local guidance for $regionName based on your saved region, frost risk, wind exposure, garden type, and the offline planting database.',
               ),
               const SizedBox(height: 16),
               _InsightSummaryGrid(data: data),
               const SizedBox(height: 16),
-              _HarvestInsightCard(data: data),
+              _PlantingInsightCard(data: data),
               const SizedBox(height: 16),
-              _RotationInsightCard(data: data),
-              const SizedBox(height: 16),
-              _BedUtilisationCard(data: data),
+              _TaskInsightCard(tasks: data.priorityTasks),
               const SizedBox(height: 16),
               _NextActionsCard(actions: data.nextActions),
             ],
@@ -64,294 +201,6 @@ class InsightsScreen extends StatelessWidget {
         },
       ),
     );
-  }
-
-  Future<_InsightsData> _loadInsightsData() async {
-    const bedRepository = GardenBedRepository();
-    const plantingRepository = GardenBedPlantingRepository();
-    const dataRepository = GardenDataRepository();
-    const rotationService = CropRotationService();
-
-    final beds = await bedRepository.loadGardenBeds();
-    final plantings = await plantingRepository.loadPlantings();
-    final crops = await dataRepository.loadCrops();
-
-    return _buildInsights(
-      beds: beds,
-      plantings: plantings,
-      crops: crops,
-      rotationService: rotationService,
-      now: DateTime.now(),
-    );
-  }
-
-  _InsightsData _buildInsights({
-    required List<GardenBed> beds,
-    required List<GardenBedPlanting> plantings,
-    required List<Crop> crops,
-    required CropRotationService rotationService,
-    required DateTime now,
-  }) {
-    final today = DateTime(now.year, now.month, now.day);
-    final soonDate = today.add(const Duration(days: _soonWindowDays));
-    final cropById = {for (final crop in crops) crop.id: crop};
-    final activePlantings = plantings
-        .where((planting) => planting.status != 'finished' && planting.status != 'failed')
-        .toList(growable: false);
-    final plannedPlantings = activePlantings
-        .where((planting) => planting.status == 'planned')
-        .toList(growable: false);
-    final growingPlantings = activePlantings
-        .where((planting) => planting.status != 'planned')
-        .toList(growable: false);
-
-    final totalPlants = activePlantings.fold<int>(
-      0,
-      (sum, planting) => sum + planting.plantCount,
-    );
-
-    final harvestReady = activePlantings
-        .where((planting) =>
-            planting.expectedHarvestStartDate != null &&
-            !today.isBefore(_dateOnly(planting.expectedHarvestStartDate!)))
-        .toList(growable: false)
-      ..sort(_sortByHarvestStart);
-
-    final harvestSoon = activePlantings
-        .where((planting) =>
-            planting.expectedHarvestStartDate != null &&
-            today.isBefore(_dateOnly(planting.expectedHarvestStartDate!)) &&
-            !_dateOnly(planting.expectedHarvestStartDate!).isAfter(soonDate))
-        .toList(growable: false)
-      ..sort(_sortByHarvestStart);
-
-    final overdueHarvests = activePlantings
-        .where((planting) =>
-            planting.expectedHarvestEndDate != null &&
-            today.isAfter(_dateOnly(planting.expectedHarvestEndDate!)))
-        .toList(growable: false)
-      ..sort(_sortByHarvestStart);
-
-    final bedInsights = beds.map((bed) {
-      final bedPlantings = activePlantings
-          .where((planting) => planting.bedId == bed.id)
-          .toList(growable: false);
-      final plantedCount = bedPlantings.fold<int>(
-        0,
-        (sum, planting) => sum + planting.plantCount,
-      );
-      final estimatedCapacity = _estimateBedCapacity(
-        bed: bed,
-        plantings: bedPlantings,
-        cropById: cropById,
-      );
-      final utilisation = estimatedCapacity == null || estimatedCapacity == 0
-          ? null
-          : (plantedCount / estimatedCapacity).clamp(0, 2).toDouble();
-
-      return _BedInsight(
-        bed: bed,
-        plantings: bedPlantings,
-        plantedCount: plantedCount,
-        estimatedCapacity: estimatedCapacity,
-        utilisation: utilisation,
-      );
-    }).toList(growable: false)
-      ..sort((a, b) => a.bed.name.compareTo(b.bed.name));
-
-    final rotationInsights = rotationService.buildBedRotationInsights(
-      beds: beds,
-      plantings: plantings,
-    );
-    final rotationRiskCount = rotationInsights
-        .where((insight) => insight.hasRisk)
-        .length;
-
-    final nextActions = _buildNextActions(
-      beds: beds,
-      activePlantings: activePlantings,
-      plannedPlantings: plannedPlantings,
-      harvestReady: harvestReady,
-      harvestSoon: harvestSoon,
-      overdueHarvests: overdueHarvests,
-      bedInsights: bedInsights,
-      rotationRiskCount: rotationRiskCount,
-    );
-
-    return _InsightsData(
-      beds: beds,
-      activePlantings: activePlantings,
-      plannedPlantings: plannedPlantings,
-      growingPlantings: growingPlantings,
-      totalPlants: totalPlants,
-      harvestReady: harvestReady,
-      harvestSoon: harvestSoon,
-      overdueHarvests: overdueHarvests,
-      bedInsights: bedInsights,
-      rotationInsights: rotationInsights,
-      rotationRiskCount: rotationRiskCount,
-      nextActions: nextActions,
-    );
-  }
-
-  int _sortByHarvestStart(GardenBedPlanting a, GardenBedPlanting b) {
-    final aDate = a.expectedHarvestStartDate ?? DateTime(9999);
-    final bDate = b.expectedHarvestStartDate ?? DateTime(9999);
-    return aDate.compareTo(bDate);
-  }
-
-  DateTime _dateOnly(DateTime date) {
-    return DateTime(date.year, date.month, date.day);
-  }
-
-  int? _estimateBedCapacity({
-    required GardenBed bed,
-    required List<GardenBedPlanting> plantings,
-    required Map<String, Crop> cropById,
-  }) {
-    final areaSquareMeters = bed.areaSquareMeters;
-    if (areaSquareMeters == null || areaSquareMeters <= 0) {
-      return null;
-    }
-
-    if (plantings.isEmpty) {
-      return null;
-    }
-
-    final plantAreas = plantings
-        .map((planting) => cropById[planting.cropId])
-        .whereType<Crop>()
-        .map((crop) {
-      final spacingMeters = crop.spacingCm / 100;
-      return spacingMeters * spacingMeters;
-    }).toList(growable: false);
-
-    if (plantAreas.isEmpty) {
-      return null;
-    }
-
-    final averagePlantArea =
-        plantAreas.fold<double>(0, (sum, area) => sum + area) / plantAreas.length;
-
-    if (averagePlantArea <= 0) {
-      return null;
-    }
-
-    return (areaSquareMeters / averagePlantArea).floor().clamp(1, 999);
-  }
-
-  List<_NextAction> _buildNextActions({
-    required List<GardenBed> beds,
-    required List<GardenBedPlanting> activePlantings,
-    required List<GardenBedPlanting> plannedPlantings,
-    required List<GardenBedPlanting> harvestReady,
-    required List<GardenBedPlanting> harvestSoon,
-    required List<GardenBedPlanting> overdueHarvests,
-    required List<_BedInsight> bedInsights,
-    required int rotationRiskCount,
-  }) {
-    final actions = <_NextAction>[];
-
-    if (beds.isEmpty) {
-      actions.add(
-        const _NextAction(
-          icon: Icons.yard_outlined,
-          title: 'Add your first bed',
-          description: 'Create a bed or container so the app can start giving useful insights.',
-        ),
-      );
-    }
-
-    if (plannedPlantings.isNotEmpty) {
-      actions.add(
-        _NextAction(
-          icon: Icons.grass_outlined,
-          title: 'Move planned crops forward',
-          description:
-              '${plannedPlantings.length} planned crop entries are waiting to be sown, transplanted, or marked as growing.',
-        ),
-      );
-    }
-
-    if (rotationRiskCount > 0) {
-      actions.add(
-        _NextAction(
-          icon: Icons.sync_problem_outlined,
-          title: 'Review crop rotation',
-          description:
-              '$rotationRiskCount bed${rotationRiskCount == 1 ? '' : 's'} may be repeating the same crop family.',
-        ),
-      );
-    }
-
-    if (overdueHarvests.isNotEmpty) {
-      actions.add(
-        _NextAction(
-          icon: Icons.priority_high_outlined,
-          title: 'Check overdue harvests',
-          description:
-              '${overdueHarvests.length} crop entries may be past their expected harvest window.',
-        ),
-      );
-    } else if (harvestReady.isNotEmpty) {
-      actions.add(
-        _NextAction(
-          icon: Icons.shopping_basket_outlined,
-          title: 'Harvest ready crops',
-          description: '${harvestReady.length} crop entries are inside their harvest window.',
-        ),
-      );
-    }
-
-    if (harvestSoon.isNotEmpty) {
-      actions.add(
-        _NextAction(
-          icon: Icons.event_available_outlined,
-          title: 'Prepare for upcoming harvests',
-          description: '${harvestSoon.length} crop entries are expected within 14 days.',
-        ),
-      );
-    }
-
-    final underusedBeds = bedInsights
-        .where((insight) => insight.utilisation != null && insight.utilisation! < 0.35)
-        .toList(growable: false);
-    if (underusedBeds.isNotEmpty) {
-      actions.add(
-        _NextAction(
-          icon: Icons.add_circle_outline,
-          title: 'Use spare bed space',
-          description:
-              '${underusedBeds.length} bed${underusedBeds.length == 1 ? '' : 's'} look underused based on crop spacing.',
-        ),
-      );
-    }
-
-    final crowdedBeds = bedInsights
-        .where((insight) => insight.utilisation != null && insight.utilisation! > 1.1)
-        .toList(growable: false);
-    if (crowdedBeds.isNotEmpty) {
-      actions.add(
-        _NextAction(
-          icon: Icons.warning_amber_outlined,
-          title: 'Review crowded beds',
-          description:
-              '${crowdedBeds.length} bed${crowdedBeds.length == 1 ? '' : 's'} may be over the estimated spacing capacity.',
-        ),
-      );
-    }
-
-    if (actions.isEmpty && activePlantings.isNotEmpty) {
-      actions.add(
-        const _NextAction(
-          icon: Icons.check_circle_outline,
-          title: 'Garden looks steady',
-          description: 'No urgent harvest, rotation, or spacing issues detected from local data.',
-        ),
-      );
-    }
-
-    return actions.take(5).toList(growable: false);
   }
 }
 
@@ -371,24 +220,24 @@ class _InsightSummaryGrid extends StatelessWidget {
       crossAxisSpacing: 8,
       children: [
         _MetricCard(
-          icon: Icons.yard_outlined,
-          label: 'Beds',
-          value: data.beds.length.toString(),
-        ),
-        _MetricCard(
           icon: Icons.eco_outlined,
-          label: 'Active crops',
-          value: data.activePlantings.length.toString(),
+          label: 'Plant now',
+          value: data.plantableCrops.length.toString(),
         ),
         _MetricCard(
-          icon: Icons.spa_outlined,
-          label: 'Plants',
-          value: data.totalPlants.toString(),
+          icon: Icons.thumb_up_alt_outlined,
+          label: 'Beginner picks',
+          value: data.beginnerCrops.length.toString(),
         ),
         _MetricCard(
-          icon: Icons.sync_problem_outlined,
-          label: 'Rotation risks',
-          value: data.rotationRiskCount.toString(),
+          icon: Icons.inventory_2_outlined,
+          label: 'Container crops',
+          value: data.containerCrops.length.toString(),
+        ),
+        _MetricCard(
+          icon: Icons.checklist_outlined,
+          label: 'Weekly jobs',
+          value: data.priorityTasks.length.toString(),
         ),
       ],
     );
@@ -432,13 +281,15 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-class _HarvestInsightCard extends StatelessWidget {
-  const _HarvestInsightCard({required this.data});
+class _PlantingInsightCard extends StatelessWidget {
+  const _PlantingInsightCard({required this.data});
 
   final _InsightsData data;
 
   @override
   Widget build(BuildContext context) {
+    final sampleCrops = data.plantableCrops.take(5).toList(growable: false);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -447,11 +298,11 @@ class _HarvestInsightCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.shopping_basket_outlined),
+                const Icon(Icons.grass_outlined),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Harvest forecast',
+                    'Planting fit',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
@@ -463,92 +314,32 @@ class _HarvestInsightCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 Chip(
-                  avatar: const Icon(Icons.check_circle_outline, size: 18),
-                  label: Text('Ready: ${data.harvestReady.length}'),
+                  avatar: const Icon(Icons.ac_unit_outlined, size: 18),
+                  label: Text('Frost-safer: ${data.frostSuitableCrops.length}'),
                 ),
                 Chip(
-                  avatar: const Icon(Icons.event_available_outlined, size: 18),
-                  label: Text('Soon: ${data.harvestSoon.length}'),
+                  avatar: const Icon(Icons.warning_amber_outlined, size: 18),
+                  label: Text('Frost tender: ${data.frostTenderCrops.length}'),
                 ),
                 Chip(
-                  avatar: const Icon(Icons.priority_high_outlined, size: 18),
-                  label: Text('Overdue: ${data.overdueHarvests.length}'),
+                  avatar: const Icon(Icons.inventory_2_outlined, size: 18),
+                  label: Text('Containers: ${data.containerCrops.length}'),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            if (data.harvestReady.isEmpty &&
-                data.harvestSoon.isEmpty &&
-                data.overdueHarvests.isEmpty)
-              const Text('No urgent harvest windows detected yet.')
+            if (sampleCrops.isEmpty)
+              const Text('No current planting matches were found for your saved setup.')
             else
-              ...[
-                ...data.overdueHarvests.take(3).map(
-                      (planting) => _PlantingInsightTile(
-                        icon: Icons.priority_high_outlined,
-                        planting: planting,
-                        label: 'May be overdue',
-                      ),
-                    ),
-                ...data.harvestReady.take(3).map(
-                      (planting) => _PlantingInsightTile(
-                        icon: Icons.shopping_basket_outlined,
-                        planting: planting,
-                        label: 'Ready now',
-                      ),
-                    ),
-                ...data.harvestSoon.take(3).map(
-                      (planting) => _PlantingInsightTile(
-                        icon: Icons.event_available_outlined,
-                        planting: planting,
-                        label: 'Ready soon',
-                      ),
-                    ),
-              ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RotationInsightCard extends StatelessWidget {
-  const _RotationInsightCard({required this.data});
-
-  final _InsightsData data;
-
-  @override
-  Widget build(BuildContext context) {
-    final riskyBeds = data.rotationInsights
-        .where((insight) => insight.hasRisk)
-        .toList(growable: false);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.sync_alt_outlined),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Crop rotation',
-                    style: Theme.of(context).textTheme.titleLarge,
+              ...sampleCrops.map(
+                (crop) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    crop.frostTender ? Icons.warning_amber_outlined : Icons.eco_outlined,
                   ),
+                  title: Text(crop.commonName),
+                  subtitle: Text(crop.summary),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (data.rotationInsights.isEmpty)
-              const Text('Add beds and crops to see rotation guidance.')
-            else if (riskyBeds.isEmpty)
-              const Text('No repeated crop-family risks detected yet.')
-            else
-              ...riskyBeds.map(
-                (insight) => _RotationRiskTile(insight: insight),
               ),
           ],
         ),
@@ -557,68 +348,10 @@ class _RotationInsightCard extends StatelessWidget {
   }
 }
 
-class _RotationRiskTile extends StatelessWidget {
-  const _RotationRiskTile({required this.insight});
+class _TaskInsightCard extends StatelessWidget {
+  const _TaskInsightCard({required this.tasks});
 
-  final BedRotationInsight insight;
-
-  @override
-  Widget build(BuildContext context) {
-    final families = insight.riskFamilies.map((family) => family.label).join(', ');
-    final advice = insight.riskFamilies.map((family) => family.shortAdvice).join(' ');
-
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        Icons.warning_amber_outlined,
-        color: Theme.of(context).colorScheme.error,
-      ),
-      title: Text(insight.bed.name),
-      subtitle: Text('$families. $advice'),
-    );
-  }
-}
-
-class _PlantingInsightTile extends StatelessWidget {
-  const _PlantingInsightTile({
-    required this.icon,
-    required this.planting,
-    required this.label,
-  });
-
-  final IconData icon;
-  final GardenBedPlanting planting;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon),
-      title: Text('${planting.cropName} × ${planting.plantCount}'),
-      subtitle: Text('$label • ${_harvestWindow(planting)}'),
-    );
-  }
-
-  String _harvestWindow(GardenBedPlanting planting) {
-    final start = planting.expectedHarvestStartDate;
-    final end = planting.expectedHarvestEndDate;
-    if (start == null || end == null) {
-      return 'No harvest estimate';
-    }
-
-    return '${_formatDate(start)} to ${_formatDate(end)}';
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-}
-
-class _BedUtilisationCard extends StatelessWidget {
-  const _BedUtilisationCard({required this.data});
-
-  final _InsightsData data;
+  final List<TaskRule> tasks;
 
   @override
   Widget build(BuildContext context) {
@@ -630,80 +363,32 @@ class _BedUtilisationCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.analytics_outlined),
+                const Icon(Icons.checklist_outlined),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Bed utilisation',
+                    'This week',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            if (data.bedInsights.isEmpty)
-              const Text('Add beds to see utilisation insights.')
+            if (tasks.isEmpty)
+              const Text('No weekly task suggestions match the current setup yet.')
             else
-              ...data.bedInsights.map(
-                (insight) => _BedUtilisationTile(insight: insight),
+              ...tasks.map(
+                (task) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.task_alt_outlined),
+                  title: Text(task.title),
+                  subtitle: Text(task.description),
+                ),
               ),
           ],
         ),
       ),
     );
-  }
-}
-
-class _BedUtilisationTile extends StatelessWidget {
-  const _BedUtilisationTile({required this.insight});
-
-  final _BedInsight insight;
-
-  @override
-  Widget build(BuildContext context) {
-    final utilisation = insight.utilisation;
-    final progress = utilisation == null ? 0.0 : utilisation.clamp(0, 1).toDouble();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(child: Text(insight.bed.name)),
-              Text(_statusText()),
-            ],
-          ),
-          const SizedBox(height: 6),
-          LinearProgressIndicator(value: progress),
-          const SizedBox(height: 4),
-          Text(
-            insight.estimatedCapacity == null
-                ? '${insight.plantedCount} plants • add dimensions and crop spacing for utilisation.'
-                : '${insight.plantedCount}/${insight.estimatedCapacity} estimated plants used.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _statusText() {
-    final utilisation = insight.utilisation;
-    if (utilisation == null) {
-      return 'Unknown';
-    }
-
-    if (utilisation > 1.1) {
-      return 'Crowded';
-    }
-
-    if (utilisation < 0.35) {
-      return 'Spare room';
-    }
-
-    return '${(utilisation * 100).round()}%';
   }
 }
 
@@ -733,17 +418,14 @@ class _NextActionsCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            if (actions.isEmpty)
-              const Text('No suggested actions yet.')
-            else
-              ...actions.map(
-                (action) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(action.icon),
-                  title: Text(action.title),
-                  subtitle: Text(action.description),
-                ),
+            ...actions.map(
+              (action) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(action.icon),
+                title: Text(action.title),
+                subtitle: Text(action.description),
               ),
+            ),
           ],
         ),
       ),
@@ -753,48 +435,26 @@ class _NextActionsCard extends StatelessWidget {
 
 class _InsightsData {
   const _InsightsData({
-    required this.beds,
-    required this.activePlantings,
-    required this.plannedPlantings,
-    required this.growingPlantings,
-    required this.totalPlants,
-    required this.harvestReady,
-    required this.harvestSoon,
-    required this.overdueHarvests,
-    required this.bedInsights,
-    required this.rotationInsights,
-    required this.rotationRiskCount,
+    required this.settings,
+    required this.selectedRegion,
+    required this.plantableCrops,
+    required this.beginnerCrops,
+    required this.containerCrops,
+    required this.frostTenderCrops,
+    required this.frostSuitableCrops,
+    required this.priorityTasks,
     required this.nextActions,
   });
 
-  final List<GardenBed> beds;
-  final List<GardenBedPlanting> activePlantings;
-  final List<GardenBedPlanting> plannedPlantings;
-  final List<GardenBedPlanting> growingPlantings;
-  final int totalPlants;
-  final List<GardenBedPlanting> harvestReady;
-  final List<GardenBedPlanting> harvestSoon;
-  final List<GardenBedPlanting> overdueHarvests;
-  final List<_BedInsight> bedInsights;
-  final List<BedRotationInsight> rotationInsights;
-  final int rotationRiskCount;
+  final AppSettings settings;
+  final NzRegion? selectedRegion;
+  final List<Crop> plantableCrops;
+  final List<Crop> beginnerCrops;
+  final List<Crop> containerCrops;
+  final List<Crop> frostTenderCrops;
+  final List<Crop> frostSuitableCrops;
+  final List<TaskRule> priorityTasks;
   final List<_NextAction> nextActions;
-}
-
-class _BedInsight {
-  const _BedInsight({
-    required this.bed,
-    required this.plantings,
-    required this.plantedCount,
-    required this.estimatedCapacity,
-    required this.utilisation,
-  });
-
-  final GardenBed bed;
-  final List<GardenBedPlanting> plantings;
-  final int plantedCount;
-  final int? estimatedCapacity;
-  final double? utilisation;
 }
 
 class _NextAction {
@@ -807,4 +467,38 @@ class _NextAction {
   final IconData icon;
   final String title;
   final String description;
+}
+
+T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T item) test) {
+  for (final item in items) {
+    if (test(item)) {
+      return item;
+    }
+  }
+
+  return null;
+}
+
+String _formatValue(String value) {
+  return value
+      .split('_')
+      .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
+}
+
+String _monthName(int month) {
+  return const [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ][month - 1];
 }

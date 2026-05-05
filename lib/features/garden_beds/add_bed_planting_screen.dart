@@ -29,6 +29,7 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
+  final _plantCountController = TextEditingController(text: '1');
   final _dataRepository = const GardenDataRepository();
   final _plantingRepository = const GardenBedPlantingRepository();
 
@@ -40,6 +41,7 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
   @override
   void dispose() {
     _notesController.dispose();
+    _plantCountController.dispose();
     super.dispose();
   }
 
@@ -64,6 +66,7 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
     }
 
     final selectedCrop = crops.firstWhere((crop) => crop.id == _selectedCropId);
+    final plantCount = int.parse(_plantCountController.text.trim());
     final expectedHarvestStartDate = _plantedDate.add(
       Duration(days: selectedCrop.daysToHarvestMin),
     );
@@ -78,6 +81,7 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
       cropId: selectedCrop.id,
       cropName: selectedCrop.commonName,
       status: _status,
+      plantCount: plantCount,
       plantedDate: _plantedDate,
       expectedHarvestStartDate: expectedHarvestStartDate,
       expectedHarvestEndDate: expectedHarvestEndDate,
@@ -91,6 +95,40 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
     }
 
     Navigator.of(context).pop(true);
+  }
+
+  int? _estimateMaxPlants(Crop crop) {
+    final areaSquareMeters = widget.bed.areaSquareMeters;
+    if (areaSquareMeters == null || areaSquareMeters <= 0 || crop.spacingCm <= 0) {
+      return null;
+    }
+
+    final plantAreaSquareMeters = (crop.spacingCm / 100) * (crop.spacingCm / 100);
+    return (areaSquareMeters / plantAreaSquareMeters).floor().clamp(1, 999);
+  }
+
+  String? _validatePlantCount(String? value, Crop? selectedCrop) {
+    final trimmed = value?.trim() ?? '';
+    final count = int.tryParse(trimmed);
+
+    if (count == null) {
+      return 'Enter a whole number.';
+    }
+
+    if (count < 1) {
+      return 'Add at least 1 plant.';
+    }
+
+    if (count > 999) {
+      return 'Use 999 or fewer plants.';
+    }
+
+    final maxPlants = selectedCrop == null ? null : _estimateMaxPlants(selectedCrop);
+    if (maxPlants != null && count > maxPlants) {
+      return 'This may exceed spacing. Suggested maximum: $maxPlants.';
+    }
+
+    return null;
   }
 
   @override
@@ -119,6 +157,7 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
           final selectedCrop = _selectedCropId == null
               ? null
               : crops.where((crop) => crop.id == _selectedCropId).firstOrNull;
+          final estimatedMax = selectedCrop == null ? null : _estimateMaxPlants(selectedCrop);
 
           return Form(
             key: _formKey,
@@ -157,6 +196,20 @@ class _AddBedPlantingScreenState extends State<AddBedPlantingScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _plantCountController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Number of plants',
+                    hintText: 'Example: 1, 6, 20',
+                    helperText: estimatedMax == null
+                        ? 'Used by the visual bed planner to draw individual plants.'
+                        : 'Spacing estimate for this bed: up to $estimatedMax plants.',
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: (value) => _validatePlantCount(value, selectedCrop),
+                ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _status,

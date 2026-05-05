@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../features/calendar/crop_calendar_screen.dart';
 import '../features/crops/crop_guide_screen.dart';
@@ -40,6 +41,7 @@ class _AppShellState extends State<AppShell> {
       ];
 
   void _openSection(Widget screen) {
+    HapticFeedback.selectionClick();
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => screen),
     );
@@ -48,7 +50,12 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: RepaintBoundary(
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: _screens,
+        ),
+      ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: NavigationBar(
@@ -56,6 +63,12 @@ class _AppShellState extends State<AppShell> {
           labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
           selectedIndex: _selectedIndex,
           onDestinationSelected: (index) {
+            if (index == _selectedIndex) {
+              HapticFeedback.selectionClick();
+              return;
+            }
+
+            HapticFeedback.selectionClick();
             setState(() => _selectedIndex = index);
           },
           destinations: const [
@@ -206,7 +219,10 @@ class _MoreSectionTile extends StatelessWidget {
       title: Text(title),
       subtitle: Text(description),
       trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
     );
   }
 }

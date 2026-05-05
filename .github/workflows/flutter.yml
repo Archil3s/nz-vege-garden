@@ -11,7 +11,7 @@ on:
 
 jobs:
   flutter:
-    name: Analyze, test, and build offline web view
+    name: Analyze, test, and build preview artifacts
     runs-on: ubuntu-latest
 
     steps:
@@ -70,5 +70,36 @@ jobs:
         with:
           name: nz-vege-garden-offline-web
           path: build/web
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Build Android debug APK
+        run: flutter build apk --debug
+
+      - name: Add Android install notes
+        run: |
+          mkdir -p phone-preview
+          cp build/app/outputs/flutter-apk/app-debug.apk phone-preview/nz-vege-garden-debug.apk
+          cat > phone-preview/ANDROID_INSTALL_README.txt <<'EOF'
+          NZ Vege Garden - Android Phone Preview
+
+          This artifact contains a debug APK for direct phone testing.
+
+          To install on Android:
+          1. Download the nz-vege-garden-android-debug-apk artifact from GitHub Actions.
+          2. Unzip it on your phone or computer.
+          3. Open nz-vege-garden-debug.apk on your Android phone.
+          4. Allow install from unknown apps when prompted.
+
+          Notes:
+          - This is a debug build for testing, not a Play Store release.
+          - iPhone cannot install this APK. iPhone testing needs TestFlight or a local Xcode/iOS build.
+          EOF
+
+      - name: Upload Android debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nz-vege-garden-android-debug-apk
+          path: phone-preview
           if-no-files-found: error
           retention-days: 14

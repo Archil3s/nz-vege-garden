@@ -52,6 +52,36 @@ jobs:
       - name: Build web preview
         run: flutter build web --release --base-href /nz-vege-garden/
 
+      - name: Add revision title to web preview
+        run: |
+          REV="${GITHUB_SHA::7}"
+          TITLE="NZ Vege Garden · rev ${REV}"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          index_path = Path('build/web/index.html')
+          html = index_path.read_text(encoding='utf-8')
+          title = os.environ.get('TITLE', 'NZ Vege Garden')
+
+          if '<title>' in html and '</title>' in html:
+              import re
+              html = re.sub(r'<title>.*?</title>', f'<title>{title}</title>', html, count=1, flags=re.S)
+          else:
+              html = html.replace('</head>', f'  <title>{title}</title>\n</head>')
+
+          revision_meta = f'<meta name="build-revision" content="{os.environ.get("REV", "unknown")}">'
+          if 'name="build-revision"' not in html:
+              html = html.replace('</head>', f'  {revision_meta}\n</head>')
+
+          index_path.write_text(html, encoding='utf-8')
+          PY
+          echo "${TITLE}" > build/web/BUILD_TITLE.txt
+          echo "${REV}" > build/web/REVISION.txt
+        env:
+          REV: ${{ github.sha }}
+          TITLE: NZ Vege Garden · rev ${{ github.sha }}
+
       - name: Add offline viewing notes
         run: |
           cat > build/web/OFFLINE_VIEW_README.txt <<'EOF'
@@ -73,6 +103,7 @@ jobs:
           Notes:
           - Opening index.html directly from the file system may not work in all browsers.
           - This is a static offline preview artifact. Network-backed features still require their services.
+          - BUILD_TITLE.txt and REVISION.txt identify the deployed build.
           EOF
 
       - name: Upload offline web artifact

@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -56,10 +59,10 @@ jobs:
         continue-on-error: true
         run: flutter analyze
 
-      - name: Build Flutter web preview
+      - name: Build Flutter web preview with offline-first PWA cache
         id: flutter_build
         continue-on-error: true
-        run: flutter build web --release --base-href /nz-vege-garden/
+        run: flutter build web --release --base-href /nz-vege-garden/ --pwa-strategy offline-first
 
       - name: Create fallback progress preview if Flutter build fails
         if: steps.flutter_build.outcome != 'success'
@@ -156,7 +159,6 @@ jobs:
               badge.style.fontSize = '12px';
               badge.style.fontWeight = '800';
               badge.style.boxShadow = '0 8px 22px rgba(0,0,0,.22)';
-              badge.style.backdropFilter = 'blur(10px)';
               document.body.appendChild(badge);
             }});
           </script>
@@ -183,6 +185,10 @@ jobs:
           Flutter build outcome:
           ${{ steps.flutter_build.outcome }}
 
+          Offline mode:
+          The successful Flutter build uses --pwa-strategy offline-first so the
+          generated service worker caches the app shell and bundled local assets.
+
           This preview publishes on every push to main. If Flutter fails to build,
           a fallback progress page is published so dev progress is still visible.
           EOF
@@ -194,6 +200,7 @@ jobs:
           echo "- URL: ${PREVIEW_URL}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Revision: ${SHORT_REV}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Flutter build: ${{ steps.flutter_build.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Offline mode: PWA offline-first cache" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload web artifact
         uses: actions/upload-artifact@v4
@@ -204,13 +211,16 @@ jobs:
           retention-days: 14
 
       - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
       - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
 
       - name: Deploy GitHub Pages preview
+        if: github.event_name != 'pull_request'
         id: deployment
         uses: actions/deploy-pages@v4

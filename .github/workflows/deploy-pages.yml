@@ -54,18 +54,8 @@ jobs:
         run: |
           python <<'PY'
           from pathlib import Path
-
-          tasks = Path('lib/features/tasks/weekly_tasks_screen.dart')
-          tasks.write_text(tasks.read_text().replace('FontWeight.w650', 'FontWeight.w600'))
-
-          home = Path('lib/features/home/friendly_home_screen.dart')
-          source = home.read_text()
-          source = source.replace('future: _load(),', 'future: _homeDataFuture,')
-          source = source.replace(
-              '  int _page = 0;\n\n  @override\n  void dispose()',
-              '  int _page = 0;\n  late final Future<_HomeData> _homeDataFuture;\n\n  @override\n  void initState() {\n    super.initState();\n    _homeDataFuture = _load();\n  }\n\n  @override\n  void dispose()',
-          )
-          home.write_text(source)
+          p = Path('lib/features/tasks/weekly_tasks_screen.dart')
+          p.write_text(p.read_text().replace('FontWeight.w650', 'FontWeight.w600'))
           PY
 
       - name: Analyze Flutter project without blocking preview
@@ -76,8 +66,34 @@ jobs:
         continue-on-error: true
         run: flutter test
 
-      - name: Build web preview
-        run: flutter build web --release --base-href /nz-vege-garden/
+      - name: Build web preview or detailed fallback
+        run: |
+          set +e
+          flutter build web --release --base-href /nz-vege-garden/ > flutter-build.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            mkdir -p build/web
+            python <<'PY'
+          from html import escape
+          from pathlib import Path
+          import os
+          text = Path('flutter-build.log').read_text(errors='replace')
+          lines = text.splitlines()
+          hits = []
+          for line in lines:
+              low = line.lower()
+              if 'error' in low or 'failed' in low or 'exception' in low or 'undefined' in low or 'not found' in low:
+                  hits.append(line)
+          if not hits:
+              hits = lines[-80:]
+          error = escape('\n'.join(hits[-80:]))
+          recent = escape('\n'.join(lines[-140:]))
+          sha = escape(os.environ.get('GITHUB_SHA', '')[:7])
+          branch = escape(os.environ.get('GITHUB_REF_NAME', 'main'))
+          Path('build/web/index.html').write_text(f'''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>NZ Veg Garden build error</title><style>body{{margin:0;background:#f8f3e8;color:#172d22;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}}main{{max-width:760px;margin:0 auto;padding:48px 20px}}.card{{border-radius:32px;overflow:hidden;background:#fffdf7;border:1px solid #e7dfce;box-shadow:0 22px 52px rgba(23,45,34,.16)}}.hero{{padding:28px 24px;color:white;background:linear-gradient(135deg,#17452f,#2f724b,#8ba766)}}h1{{font-size:52px;line-height:.95;margin:18px 0 10px;letter-spacing:-.05em}}.body{{padding:22px}}.pill{{display:inline-block;padding:9px 14px;border-radius:999px;background:#fbefe6;color:#c4793d;font-weight:900}}.row{{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e7dfce;padding:13px 0;font-size:20px;font-weight:900}}.row span:first-child{{color:#66736a}}pre{{white-space:pre-wrap;overflow:auto;max-height:38vh;background:#111a14;color:#e8f5e9;border-radius:18px;padding:14px;font-size:12px;line-height:1.4}}p{{color:#66736a;font-size:18px;font-weight:750;line-height:1.4}}</style></head><body><main><section class="card"><div class="hero"><strong>NZ Veg Garden · dev preview</strong><h1>Build error outlined</h1><p style="color:white;margin:0">GitHub Pages received the push, but Flutter failed to compile.</p></div><div class="body"><span class="pill">Build needs fix</span><div class="row"><span>Revision</span><span>{sha}</span></div><div class="row"><span>Branch</span><span>{branch}</span></div><div class="row"><span>Workflow</span><span>iPhone Web Preview</span></div><h2>Likely failing lines</h2><pre>{error}</pre><h2>Recent build log</h2><pre>{recent}</pre><p>This fallback page is intentional. It now prints the captured Flutter build error directly on iPhone.</p></div></section></main></body></html>''')
+          PY
+          fi
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

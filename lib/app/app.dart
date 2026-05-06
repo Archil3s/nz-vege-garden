@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../features/calendar/crop_calendar_screen.dart';
 import '../features/crops/crop_guide_screen.dart';
+import '../features/harvest/harvest_tracker_screen.dart';
 import '../features/home/friendly_home_screen.dart';
 import '../features/insights/insights_screen.dart';
 import '../features/journal/garden_journal_screen.dart';
@@ -141,6 +142,12 @@ class _MoreScreen extends StatelessWidget {
           _MoreSectionCard(
             title: 'Planning',
             children: [
+              _MoreSectionTile(
+                icon: Icons.shopping_basket_outlined,
+                title: 'Harvest tracker',
+                description: 'Log harvest weights, totals, crop leaders, and notes offline.',
+                onTap: () => onOpenSection(const HarvestTrackerScreen()),
+              ),
               _MoreSectionTile(
                 icon: Icons.edit_note_outlined,
                 title: 'Garden journal',

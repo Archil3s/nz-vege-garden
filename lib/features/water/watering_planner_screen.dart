@@ -305,7 +305,7 @@ class _StepRow extends StatelessWidget {
         children: [
           Icon(Icons.check_circle_outline, size: 20, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: const TextStyle(fontWeight: FontWeight.w650, height: 1.35))),
+          Expanded(child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600, height: 1.35))),
         ],
       ),
     );

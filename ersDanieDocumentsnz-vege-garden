@@ -1,0 +1,69 @@
+warning: in the working copy of 'lib/data/models/garden_bed.dart', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/lib/data/models/garden_bed.dart b/lib/data/models/garden_bed.dart[m
+[1mindex c8aaeed..ad78706 100644[m
+[1m--- a/lib/data/models/garden_bed.dart[m
+[1m+++ b/lib/data/models/garden_bed.dart[m
+[36m@@ -5,6 +5,7 @@[m [mclass GardenBed {[m
+     required this.type,[m
+     required this.lengthCm,[m
+     required this.widthCm,[m
+[32m+[m[32m    required this.layoutStyle,[m
+     required this.sunExposure,[m
+     required this.windExposure,[m
+     required this.notes,[m
+[36m@@ -17,6 +18,7 @@[m [mclass GardenBed {[m
+   final String type;[m
+   final int? lengthCm;[m
+   final int? widthCm;[m
+[32m+[m[32m  final String layoutStyle;[m
+   final String sunExposure;[m
+   final String windExposure;[m
+   final String notes;[m
+[36m@@ -46,6 +48,7 @@[m [mclass GardenBed {[m
+     String? type,[m
+     int? lengthCm,[m
+     int? widthCm,[m
+[32m+[m[32m    String? layoutStyle,[m
+     String? sunExposure,[m
+     String? windExposure,[m
+     String? notes,[m
+[36m@@ -58,6 +61,7 @@[m [mclass GardenBed {[m
+       type: type ?? this.type,[m
+       lengthCm: lengthCm ?? this.lengthCm,[m
+       widthCm: widthCm ?? this.widthCm,[m
+[32m+[m[32m      layoutStyle: layoutStyle ?? this.layoutStyle,[m
+       sunExposure: sunExposure ?? this.sunExposure,[m
+       windExposure: windExposure ?? this.windExposure,[m
+       notes: notes ?? this.notes,[m
+[36m@@ -71,6 +75,7 @@[m [mclass GardenBed {[m
+     required String type,[m
+     int? lengthCm,[m
+     int? widthCm,[m
+[32m+[m[32m    String layoutStyle = 'rows',[m
+     String sunExposure = 'full_sun',[m
+     String windExposure = 'moderate',[m
+     String notes = '',[m
+[36m@@ -84,6 +89,7 @@[m [mclass GardenBed {[m
+       type: type,[m
+       lengthCm: lengthCm,[m
+       widthCm: widthCm,[m
+[32m+[m[32m      layoutStyle: layoutStyle,[m
+       sunExposure: sunExposure,[m
+       windExposure: windExposure,[m
+       notes: notes,[m
+[36m@@ -99,6 +105,7 @@[m [mclass GardenBed {[m
+       type: json['type'] as String,[m
+       lengthCm: json['lengthCm'] as int?,[m
+       widthCm: json['widthCm'] as int?,[m
+[32m+[m[32m      layoutStyle: json['layoutStyle'] as String? ?? 'rows',[m
+       sunExposure: json['sunExposure'] as String,[m
+       windExposure: json['windExposure'] as String,[m
+       notes: json['notes'] as String,[m
+[36m@@ -114,6 +121,7 @@[m [mclass GardenBed {[m
+       'type': type,[m
+       'lengthCm': lengthCm,[m
+       'widthCm': widthCm,[m
+[32m+[m[32m      'layoutStyle': layoutStyle,[m
+       'sunExposure': sunExposure,[m
+       'windExposure': windExposure,[m
+       'notes': notes,[m

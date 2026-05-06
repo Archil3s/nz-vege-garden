@@ -1,0 +1,90 @@
+[
+  {
+    "id": "northland",
+    "name": "Northland",
+    "island": "North Island",
+    "climateSummary": "Warm, long growing season, low frost risk in many coastal areas.",
+    "defaultFrostRisk": "low",
+    "defaultWindRisk": "moderate"
+  },
+  {
+    "id": "auckland",
+    "name": "Auckland",
+    "island": "North Island",
+    "climateSummary": "Mild winters, humid summers, good year-round growing potential.",
+    "defaultFrostRisk": "low",
+    "defaultWindRisk": "moderate"
+  },
+  {
+    "id": "waikato_bay_of_plenty",
+    "name": "Waikato / Bay of Plenty",
+    "island": "North Island",
+    "climateSummary": "Productive, mild to moderate frost depending on site, humid in many areas.",
+    "defaultFrostRisk": "moderate",
+    "defaultWindRisk": "moderate"
+  },
+  {
+    "id": "gisborne_hawkes_bay",
+    "name": "Gisborne / Hawke's Bay",
+    "island": "North Island",
+    "climateSummary": "Warm and often dry, strong summer crop potential, watering important.",
+    "defaultFrostRisk": "moderate",
+    "defaultWindRisk": "moderate"
+  },
+  {
+    "id": "taranaki_manawatu",
+    "name": "Taranaki / Manawatu",
+    "island": "North Island",
+    "climateSummary": "Moist, temperate, variable wind exposure.",
+    "defaultFrostRisk": "moderate",
+    "defaultWindRisk": "moderate"
+  },
+  {
+    "id": "wellington_wairarapa",
+    "name": "Wellington / Wairarapa",
+    "island": "North Island",
+    "climateSummary": "Wind exposure can be significant; Wairarapa has stronger seasonal extremes.",
+    "defaultFrostRisk": "moderate",
+    "defaultWindRisk": "exposed"
+  },
+  {
+    "id": "nelson_marlborough",
+    "name": "Nelson / Marlborough",
+    "island": "South Island",
+    "climateSummary": "Good sunshine, dry summers in many places, watering and mulching important.",
+    "defaultFrostRisk": "moderate",
+    "defaultWindRisk": "moderate"
+  },
+  {
+    "id": "canterbury",
+    "name": "Canterbury",
+    "island": "South Island",
+    "climateSummary": "Cool winters, frost risk important, hot dry summers possible.",
+    "defaultFrostRisk": "high",
+    "defaultWindRisk": "moderate"
+  },
+  {
+    "id": "west_coast",
+    "name": "West Coast",
+    "island": "South Island",
+    "climateSummary": "High rainfall, mild temperatures, drainage and fungal management important.",
+    "defaultFrostRisk": "moderate",
+    "defaultWindRisk": "moderate"
+  },
+  {
+    "id": "otago",
+    "name": "Otago",
+    "island": "South Island",
+    "climateSummary": "Strong seasonal variation, frost risk important, hot summers possible inland.",
+    "defaultFrostRisk": "high",
+    "defaultWindRisk": "moderate"
+  },
+  {
+    "id": "southland",
+    "name": "Southland",
+    "island": "South Island",
+    "climateSummary": "Cool climate, shorter warm season, frost-sensitive crops need care.",
+    "defaultFrostRisk": "high",
+    "defaultWindRisk": "moderate"
+  }
+]

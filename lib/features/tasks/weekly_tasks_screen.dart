@@ -424,7 +424,7 @@ class _TaskStep extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(height: 1.35, fontWeight: FontWeight.w650),
+              style: const TextStyle(height: 1.35, fontWeight: FontWeight.w600),
             ),
           ),
         ],

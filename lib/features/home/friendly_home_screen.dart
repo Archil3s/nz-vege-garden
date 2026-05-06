@@ -12,7 +12,7 @@ import '../crops/crop_guide_screen.dart';
 import '../pruning/pruning_guide_screen.dart';
 import '../tasks/weekly_tasks_screen.dart';
 
-class FriendlyHomeScreen extends StatelessWidget {
+class FriendlyHomeScreen extends StatefulWidget {
   const FriendlyHomeScreen({super.key});
 
   static const canvas = Color(0xFFF8F3E8);
@@ -25,6 +25,21 @@ class FriendlyHomeScreen extends StatelessWidget {
   static const mint = Color(0xFFE7F0DB);
   static const clay = Color(0xFFC4793D);
   static const border = Color(0xFFE7DFCE);
+  static const sun = Color(0xFFF4C86A);
+
+  @override
+  State<FriendlyHomeScreen> createState() => _FriendlyHomeScreenState();
+}
+
+class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
+  final PageController _controller = PageController(viewportFraction: .90);
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +51,9 @@ class FriendlyHomeScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          const Positioned.fill(child: ColoredBox(color: canvas)),
-          Positioned(top: -120, right: -120, child: _Blob(color: mint.withOpacity(.95), size: 270)),
-          Positioned(bottom: -140, left: -120, child: _Blob(color: const Color(0xFFF4C86A).withOpacity(.22), size: 290)),
+          const Positioned.fill(child: ColoredBox(color: FriendlyHomeScreen.canvas)),
+          Positioned(top: -128, right: -120, child: _Blob(color: FriendlyHomeScreen.mint.withOpacity(.95), size: 280)),
+          Positioned(bottom: -150, left: -130, child: _Blob(color: FriendlyHomeScreen.sun.withOpacity(.22), size: 300)),
           FutureBuilder<_HomeData>(
             future: _load(),
             builder: (context, snapshot) {
@@ -46,7 +61,12 @@ class FriendlyHomeScreen extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
-                return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Could not load garden data.')));
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text('Could not load garden data.'),
+                  ),
+                );
               }
 
               final data = snapshot.data;
@@ -54,29 +74,42 @@ class FriendlyHomeScreen extends StatelessWidget {
 
               final firstCrop = data.plantableCrops.isEmpty ? null : data.plantableCrops.first;
               final regionName = data.selectedRegion?.name ?? 'Your region';
-              final cards = <Widget>[
-                _TodayPage(regionName: regionName, settings: data.settings, firstCrop: firstCrop),
-                _SowPage(crops: data.plantableCrops.take(8).toList()),
-                const _PrunePage(),
-                const _ToolsPage(),
-                _PickPage(crops: data.recommendedCrops),
+              final pages = <Widget>[
+                _TodayCard(regionName: regionName, settings: data.settings, firstCrop: firstCrop),
+                _SowCard(crops: data.plantableCrops.take(6).toList()),
+                const _PruneCard(),
+                const _ToolsCard(),
+                _BestPickCard(crops: data.recommendedCrops),
               ];
 
-              return PageView.builder(
-                padEnds: false,
-                controller: PageController(viewportFraction: .88),
-                itemCount: cards.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      index == 0 ? 16 : 8,
-                      MediaQuery.paddingOf(context).top + 72,
-                      index == cards.length - 1 ? 16 : 8,
-                      118,
-                    ),
-                    child: cards[index],
-                  );
-                },
+              return Stack(
+                children: [
+                  PageView.builder(
+                    controller: _controller,
+                    itemCount: pages.length,
+                    onPageChanged: (index) {
+                      HapticFeedback.selectionClick();
+                      setState(() => _page = index);
+                    },
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          index == 0 ? 16 : 7,
+                          MediaQuery.paddingOf(context).top + 78,
+                          index == pages.length - 1 ? 16 : 7,
+                          126,
+                        ),
+                        child: pages[index],
+                      );
+                    },
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 88,
+                    child: _PageDots(count: pages.length, activeIndex: _page),
+                  ),
+                ],
               );
             },
           ),
@@ -113,8 +146,8 @@ class FriendlyHomeScreen extends StatelessWidget {
   }
 }
 
-class _TodayPage extends StatelessWidget {
-  const _TodayPage({required this.regionName, required this.settings, required this.firstCrop});
+class _TodayCard extends StatelessWidget {
+  const _TodayCard({required this.regionName, required this.settings, required this.firstCrop});
 
   final String regionName;
   final AppSettings settings;
@@ -122,51 +155,90 @@ class _TodayPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _HeroPanel(
-      title: 'Swipe your\ngarden',
-      subtitle: 'Quick actions, no scrolling down.',
-      iconAsset: 'assets/icons/seedling.svg',
-      chips: [regionName, _format(settings.frostRisk), _format(settings.windExposure)],
-      children: [
-        _ActionRow(
-          iconAsset: 'assets/icons/seedling.svg',
-          title: 'Sow now',
-          subtitle: firstCrop?.commonName ?? 'No picks this month',
-          color: FriendlyHomeScreen.leaf,
-          onTap: () {
-            if (firstCrop == null) {
-              _snack(context, 'No sowing picks for this month.');
-            } else {
-              _openCrop(context, firstCrop!);
-            }
-          },
-        ),
-        const SizedBox(height: 12),
-        _ActionRow(
-          iconAsset: 'assets/icons/pruning_shears.svg',
-          title: 'Prune',
-          subtitle: 'Trees, shrubs, hedges',
-          color: FriendlyHomeScreen.clay,
-          onTap: () => _openScreen(context, const PruningGuideScreen()),
-        ),
-      ],
+    return _GardenCard.hero(
+      child: Stack(
+        children: [
+          Positioned.fill(child: CustomPaint(painter: _LeafPainter())),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _GlassPill(label: regionName),
+                        _GlassPill(label: _format(settings.frostRisk)),
+                        _GlassPill(label: _format(settings.windExposure)),
+                      ],
+                    ),
+                  ),
+                  SvgPicture.asset('assets/icons/seedling.svg', width: 82, height: 82),
+                ],
+              ),
+              const Spacer(),
+              const Text(
+                'Your garden\ntoday',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 38,
+                  height: .94,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.25,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Swipe cards. Tap actions. Keep it simple.',
+                style: TextStyle(color: Colors.white.withOpacity(.78), fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 22),
+              _ActionRow(
+                iconAsset: 'assets/icons/seedling.svg',
+                title: 'Sow now',
+                subtitle: firstCrop?.commonName ?? 'No picks this month',
+                color: FriendlyHomeScreen.leaf,
+                onTap: () {
+                  if (firstCrop == null) {
+                    _snack(context, 'No sowing picks for this month.');
+                  } else {
+                    _openCrop(context, firstCrop!);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              _ActionRow(
+                iconAsset: 'assets/icons/pruning_shears.svg',
+                title: 'Prune guide',
+                subtitle: 'Trees, shrubs and vines',
+                color: FriendlyHomeScreen.clay,
+                onTap: () => _openScreen(context, const PruningGuideScreen()),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _SowPage extends StatelessWidget {
-  const _SowPage({required this.crops});
+class _SowCard extends StatelessWidget {
+  const _SowCard({required this.crops});
 
   final List<Crop> crops;
 
   @override
   Widget build(BuildContext context) {
-    return _Panel(
-      title: 'Sow now',
-      label: '${crops.length} crops',
+    return _GardenCard(
       iconAsset: 'assets/icons/seedling.svg',
+      label: '${crops.length} crops',
+      title: 'Sow now',
+      footer: 'Tap a crop for details',
       child: crops.isEmpty
-          ? const Text('No sowing picks this month.', style: TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700))
+          ? const _EmptyState(message: 'No sowing picks this month.')
           : Wrap(
               spacing: 10,
               runSpacing: 10,
@@ -176,23 +248,28 @@ class _SowPage extends StatelessWidget {
   }
 }
 
-class _PrunePage extends StatelessWidget {
-  const _PrunePage();
+class _PruneCard extends StatelessWidget {
+  const _PruneCard();
 
   @override
   Widget build(BuildContext context) {
-    return _Panel(
-      title: 'Pruning',
-      label: 'guide',
+    return _GardenCard(
       iconAsset: 'assets/icons/pruning_shears.svg',
+      label: 'seasonal',
+      title: 'Pruning',
+      footer: 'Bushes · trees · vines · hedges',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Trees, shrubs, bushes, hedges, berries and vines.', style: TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700, height: 1.35)),
-          const SizedBox(height: 18),
+          const _VisualCallout(
+            icon: Icons.content_cut_outlined,
+            title: 'Quick pruning guide',
+            subtitle: 'See what to prune and when.',
+            color: FriendlyHomeScreen.clay,
+          ),
+          const SizedBox(height: 14),
           _ActionRow(
             iconAsset: 'assets/icons/pruning_shears.svg',
-            title: 'Open pruning guide',
+            title: 'Open guide',
             subtitle: 'Season cards + categories',
             color: FriendlyHomeScreen.clay,
             onTap: () => _openScreen(context, const PruningGuideScreen()),
@@ -203,15 +280,16 @@ class _PrunePage extends StatelessWidget {
   }
 }
 
-class _ToolsPage extends StatelessWidget {
-  const _ToolsPage();
+class _ToolsCard extends StatelessWidget {
+  const _ToolsCard();
 
   @override
   Widget build(BuildContext context) {
-    return _Panel(
-      title: 'Tools',
-      label: 'quick access',
+    return _GardenCard(
       iconAsset: 'assets/icons/crop_guide.svg',
+      label: 'shortcuts',
+      title: 'Tools',
+      footer: 'Fast access',
       child: Column(
         children: [
           _ToolButton(asset: 'assets/icons/crop_guide.svg', label: 'Crop guide', onTap: () => _openScreen(context, const CropGuideScreen())),
@@ -225,105 +303,106 @@ class _ToolsPage extends StatelessWidget {
   }
 }
 
-class _PickPage extends StatelessWidget {
-  const _PickPage({required this.crops});
+class _BestPickCard extends StatelessWidget {
+  const _BestPickCard({required this.crops});
 
   final List<Crop> crops;
 
   @override
   Widget build(BuildContext context) {
     final best = crops.isEmpty ? null : crops.first;
-    return _Panel(
-      title: 'Best pick',
-      label: 'easy start',
+    return _GardenCard(
       iconAsset: 'assets/icons/weather_frost.svg',
+      label: 'easy start',
+      title: 'Best pick',
+      footer: 'Swipe back anytime',
+      child: best == null
+          ? const _EmptyState(message: 'Check sowing picks.')
+          : Column(
+              children: [
+                _ActionRow(
+                  iconAsset: 'assets/icons/seedling.svg',
+                  title: best.commonName,
+                  subtitle: 'Good beginner crop',
+                  color: FriendlyHomeScreen.leaf,
+                  onTap: () => _openCrop(context, best),
+                ),
+                const SizedBox(height: 14),
+                const _VisualCallout(
+                  icon: Icons.swipe_outlined,
+                  title: 'Swipe cards',
+                  subtitle: 'Home is now card-first and horizontal.',
+                  color: FriendlyHomeScreen.leaf,
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _GardenCard extends StatelessWidget {
+  const _GardenCard({required this.iconAsset, required this.label, required this.title, required this.child, required this.footer}) : hero = false;
+
+  const _GardenCard.hero({required this.child})
+      : iconAsset = '',
+        label = '',
+        title = '',
+        footer = '',
+        hero = true;
+
+  final String iconAsset;
+  final String label;
+  final String title;
+  final String footer;
+  final Widget child;
+  final bool hero;
+
+  @override
+  Widget build(BuildContext context) {
+    final decoration = hero
+        ? const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [FriendlyHomeScreen.leafDark, FriendlyHomeScreen.leaf, FriendlyHomeScreen.moss],
+            ),
+            borderRadius: BorderRadius.all(Radius.circular(36)),
+            boxShadow: [BoxShadow(color: Color(0x24172D22), blurRadius: 32, offset: Offset(0, 18))],
+          )
+        : BoxDecoration(
+            color: FriendlyHomeScreen.surface,
+            borderRadius: BorderRadius.circular(36),
+            border: Border.all(color: FriendlyHomeScreen.border),
+            boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 26, offset: Offset(0, 14))],
+          );
+
+    if (hero) {
+      return Container(padding: const EdgeInsets.all(22), decoration: decoration, child: child);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: decoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (best == null)
-            const Text('Check sowing picks.', style: TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700))
-          else
-            _ActionRow(
-              iconAsset: 'assets/icons/seedling.svg',
-              title: best.commonName,
-              subtitle: 'Beginner-friendly pick',
-              color: FriendlyHomeScreen.leaf,
-              onTap: () => _openCrop(context, best),
-            ),
-          const SizedBox(height: 18),
-          const Text('Swipe left or right to move between Home sections.', style: TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700, height: 1.35)),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroPanel extends StatelessWidget {
-  const _HeroPanel({required this.title, required this.subtitle, required this.iconAsset, required this.chips, required this.children});
-
-  final String title;
-  final String subtitle;
-  final String iconAsset;
-  final List<String> chips;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(34),
-        boxShadow: const [BoxShadow(color: Color(0x24172D22), blurRadius: 32, offset: Offset(0, 18))],
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [FriendlyHomeScreen.leafDark, FriendlyHomeScreen.leaf, FriendlyHomeScreen.moss]),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(child: CustomPaint(painter: _LeafPainter())),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(child: Wrap(spacing: 8, runSpacing: 8, children: chips.take(3).map((chip) => _GlassPill(label: chip)).toList())),
-              SvgPicture.asset(iconAsset, width: 78, height: 78),
-            ]),
-            const Spacer(),
-            Text(title, style: const TextStyle(color: Colors.white, fontSize: 36, height: .96, fontWeight: FontWeight.w900, letterSpacing: -1.1)),
-            const SizedBox(height: 8),
-            Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(.78), fontWeight: FontWeight.w800)),
-            const SizedBox(height: 22),
-            ...children,
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _Pill(label: label),
+              const SizedBox(height: 13),
+              Text(title, style: const TextStyle(color: FriendlyHomeScreen.ink, fontSize: 36, height: .96, fontWeight: FontWeight.w900, letterSpacing: -1.15)),
+            ])),
+            SvgPicture.asset(iconAsset, width: 78, height: 78),
+          ]),
+          const SizedBox(height: 24),
+          child,
+          const Spacer(),
+          Row(children: [
+            Expanded(child: Text(footer, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w800))),
+            const _Pill(label: 'swipe →'),
           ]),
         ],
       ),
-    );
-  }
-}
-
-class _Panel extends StatelessWidget {
-  const _Panel({required this.title, required this.label, required this.iconAsset, required this.child});
-
-  final String title;
-  final String label;
-  final String iconAsset;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: FriendlyHomeScreen.surface, borderRadius: BorderRadius.circular(34), border: Border.all(color: FriendlyHomeScreen.border), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 24, offset: Offset(0, 12))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _Pill(label: label),
-            const SizedBox(height: 12),
-            Text(title, style: const TextStyle(color: FriendlyHomeScreen.ink, fontSize: 34, height: 1, fontWeight: FontWeight.w900, letterSpacing: -1.0)),
-          ])),
-          SvgPicture.asset(iconAsset, width: 76, height: 76),
-        ]),
-        const SizedBox(height: 22),
-        child,
-        const Spacer(),
-        const Align(alignment: Alignment.bottomRight, child: _Pill(label: 'swipe →')),
-      ]),
     );
   }
 }
@@ -342,16 +421,23 @@ class _ActionRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: () { HapticFeedback.selectionClick(); onTap(); },
+        borderRadius: BorderRadius.circular(26),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         child: Ink(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: Colors.white.withOpacity(.9), borderRadius: BorderRadius.circular(24), border: Border.all(color: color.withOpacity(.18))),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(.92),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: color.withOpacity(.18)),
+          ),
           child: Row(children: [
-            SvgPicture.asset(iconAsset, width: 46, height: 46),
+            SvgPicture.asset(iconAsset, width: 48, height: 48),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.ink, fontWeight: FontWeight.w900, fontSize: 16)),
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.ink, fontWeight: FontWeight.w900, fontSize: 17)),
               const SizedBox(height: 3),
               Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700)),
             ])),
@@ -379,7 +465,13 @@ class _CropChip extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
           decoration: BoxDecoration(color: FriendlyHomeScreen.mint, borderRadius: BorderRadius.circular(999)),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Container(width: 32, height: 32, alignment: Alignment.center, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: Text(crop.commonName.characters.first.toUpperCase(), style: const TextStyle(color: FriendlyHomeScreen.leaf, fontWeight: FontWeight.w900))),
+            Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+              child: Text(crop.commonName.characters.first.toUpperCase(), style: const TextStyle(color: FriendlyHomeScreen.leaf, fontWeight: FontWeight.w900)),
+            ),
             const SizedBox(width: 8),
             Text(crop.commonName, style: const TextStyle(color: FriendlyHomeScreen.leafDark, fontWeight: FontWeight.w900)),
           ]),
@@ -399,6 +491,70 @@ class _ToolButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _ActionRow(iconAsset: asset, title: label, subtitle: 'Open', color: FriendlyHomeScreen.leaf, onTap: onTap);
+  }
+}
+
+class _VisualCallout extends StatelessWidget {
+  const _VisualCallout({required this.icon, required this.title, required this.subtitle, required this.color});
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: color.withOpacity(.10), borderRadius: BorderRadius.circular(24)),
+      child: Row(children: [
+        Icon(icon, color: color, size: 30),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 16)),
+          const SizedBox(height: 3),
+          Text(subtitle, style: const TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700)),
+        ])),
+      ]),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return _VisualCallout(icon: Icons.info_outline, title: 'Nothing urgent', subtitle: message, color: FriendlyHomeScreen.leaf);
+  }
+}
+
+class _PageDots extends StatelessWidget {
+  const _PageDots({required this.count, required this.activeIndex});
+
+  final int count;
+  final int activeIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(count, (index) {
+        final active = index == activeIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: active ? 24 : 8,
+          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          decoration: BoxDecoration(
+            color: active ? FriendlyHomeScreen.leaf : FriendlyHomeScreen.border,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        );
+      }),
+    );
   }
 }
 

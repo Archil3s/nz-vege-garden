@@ -32,7 +32,7 @@ class FriendlyHomeScreen extends StatefulWidget {
 }
 
 class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
-  final PageController _controller = PageController(viewportFraction: .90);
+  final PageController _controller = PageController(viewportFraction: .92);
   int _page = 0;
 
   @override
@@ -52,8 +52,8 @@ class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
       body: Stack(
         children: [
           const Positioned.fill(child: ColoredBox(color: FriendlyHomeScreen.canvas)),
-          Positioned(top: -128, right: -120, child: _Blob(color: FriendlyHomeScreen.mint.withOpacity(.95), size: 280)),
-          Positioned(bottom: -150, left: -130, child: _Blob(color: FriendlyHomeScreen.sun.withOpacity(.22), size: 300)),
+          Positioned(top: -160, right: -136, child: _Blob(color: FriendlyHomeScreen.mint.withOpacity(.70), size: 300)),
+          Positioned(bottom: -170, left: -160, child: _Blob(color: FriendlyHomeScreen.sun.withOpacity(.15), size: 320)),
           FutureBuilder<_HomeData>(
             future: _load(),
             builder: (context, snapshot) {
@@ -94,10 +94,10 @@ class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: EdgeInsets.fromLTRB(
-                          index == 0 ? 16 : 7,
-                          MediaQuery.paddingOf(context).top + 78,
-                          index == pages.length - 1 ? 16 : 7,
-                          126,
+                          index == 0 ? 20 : 7,
+                          MediaQuery.paddingOf(context).top + 82,
+                          index == pages.length - 1 ? 20 : 7,
+                          118,
                         ),
                         child: pages[index],
                       );
@@ -106,7 +106,7 @@ class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
                   Positioned(
                     left: 0,
                     right: 0,
-                    bottom: 88,
+                    bottom: 78,
                     child: _PageDots(count: pages.length, activeIndex: _page),
                   ),
                 ],
@@ -155,7 +155,52 @@ class _TodayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GardenCard.hero(
+    return _FramedCard(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final heroHeight = (constraints.maxHeight * .53).clamp(220.0, 320.0);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: heroHeight,
+                child: _TodayHero(
+                  regionName: regionName,
+                  settings: settings,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: _TodayActionsPanel(firstCrop: firstCrop),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _TodayHero extends StatelessWidget {
+  const _TodayHero({required this.regionName, required this.settings});
+
+  final String regionName;
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [FriendlyHomeScreen.leafDark, FriendlyHomeScreen.leaf, FriendlyHomeScreen.moss],
+        ),
+        borderRadius: BorderRadius.all(Radius.circular(30)),
+        boxShadow: [BoxShadow(color: Color(0x22172D22), blurRadius: 26, offset: Offset(0, 14))],
+      ),
       child: Stack(
         children: [
           Positioned.fill(child: CustomPaint(painter: _LeafPainter())),
@@ -176,7 +221,17 @@ class _TodayCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  SvgPicture.asset('assets/icons/seedling.svg', width: 82, height: 82),
+                  Container(
+                    width: 74,
+                    height: 74,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: FriendlyHomeScreen.surface.withOpacity(.86),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withOpacity(.32)),
+                    ),
+                    child: SvgPicture.asset('assets/icons/seedling.svg'),
+                  ),
                 ],
               ),
               const Spacer(),
@@ -184,40 +239,79 @@ class _TodayCard extends StatelessWidget {
                 'Your garden\ntoday',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 38,
+                  fontSize: 36,
                   height: .94,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: -1.25,
+                  letterSpacing: -1.2,
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                'Swipe cards. Tap actions. Keep it simple.',
-                style: TextStyle(color: Colors.white.withOpacity(.78), fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 22),
-              _ActionRow(
-                iconAsset: 'assets/icons/seedling.svg',
-                title: 'Sow now',
-                subtitle: firstCrop?.commonName ?? 'No picks this month',
-                color: FriendlyHomeScreen.leaf,
-                onTap: () {
-                  if (firstCrop == null) {
-                    _snack(context, 'No sowing picks for this month.');
-                  } else {
-                    _openCrop(context, firstCrop!);
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              _ActionRow(
-                iconAsset: 'assets/icons/pruning_shears.svg',
-                title: 'Prune guide',
-                subtitle: 'Trees, shrubs and vines',
-                color: FriendlyHomeScreen.clay,
-                onTap: () => _openScreen(context, const PruningGuideScreen()),
+                'Simple actions for right now.',
+                style: TextStyle(color: Colors.white.withOpacity(.82), fontWeight: FontWeight.w800),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayActionsPanel extends StatelessWidget {
+  const _TodayActionsPanel({required this.firstCrop});
+
+  final Crop? firstCrop;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.82),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: FriendlyHomeScreen.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Text(
+              'Today’s actions',
+              style: TextStyle(color: FriendlyHomeScreen.ink, fontSize: 16, fontWeight: FontWeight.w900),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                Expanded(
+                  child: _ActionRow(
+                    iconAsset: 'assets/icons/seedling.svg',
+                    title: 'Sow now',
+                    subtitle: firstCrop?.commonName ?? 'No picks this month',
+                    color: FriendlyHomeScreen.leaf,
+                    onTap: () {
+                      if (firstCrop == null) {
+                        _snack(context, 'No sowing picks for this month.');
+                      } else {
+                        _openCrop(context, firstCrop!);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: _ActionRow(
+                    iconAsset: 'assets/icons/pruning_shears.svg',
+                    title: 'Prune guide',
+                    subtitle: 'Trees, shrubs and vines',
+                    color: FriendlyHomeScreen.clay,
+                    onTap: () => _openScreen(context, const PruningGuideScreen()),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -331,7 +425,7 @@ class _BestPickCard extends StatelessWidget {
                 const _VisualCallout(
                   icon: Icons.swipe_outlined,
                   title: 'Swipe cards',
-                  subtitle: 'Home is now card-first and horizontal.',
+                  subtitle: 'Home is card-first and horizontal.',
                   color: FriendlyHomeScreen.leaf,
                 ),
               ],
@@ -340,49 +434,45 @@ class _BestPickCard extends StatelessWidget {
   }
 }
 
-class _GardenCard extends StatelessWidget {
-  const _GardenCard({required this.iconAsset, required this.label, required this.title, required this.child, required this.footer}) : hero = false;
+class _FramedCard extends StatelessWidget {
+  const _FramedCard({required this.child});
 
-  const _GardenCard.hero({required this.child})
-      : iconAsset = '',
-        label = '',
-        title = '',
-        footer = '',
-        hero = true;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: FriendlyHomeScreen.surface.withOpacity(.92),
+        borderRadius: BorderRadius.circular(36),
+        border: Border.all(color: FriendlyHomeScreen.border),
+        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 28, offset: Offset(0, 14))],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _GardenCard extends StatelessWidget {
+  const _GardenCard({required this.iconAsset, required this.label, required this.title, required this.child, required this.footer});
 
   final String iconAsset;
   final String label;
   final String title;
   final String footer;
   final Widget child;
-  final bool hero;
 
   @override
   Widget build(BuildContext context) {
-    final decoration = hero
-        ? const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [FriendlyHomeScreen.leafDark, FriendlyHomeScreen.leaf, FriendlyHomeScreen.moss],
-            ),
-            borderRadius: BorderRadius.all(Radius.circular(36)),
-            boxShadow: [BoxShadow(color: Color(0x24172D22), blurRadius: 32, offset: Offset(0, 18))],
-          )
-        : BoxDecoration(
-            color: FriendlyHomeScreen.surface,
-            borderRadius: BorderRadius.circular(36),
-            border: Border.all(color: FriendlyHomeScreen.border),
-            boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 26, offset: Offset(0, 14))],
-          );
-
-    if (hero) {
-      return Container(padding: const EdgeInsets.all(22), decoration: decoration, child: child);
-    }
-
     return Container(
       padding: const EdgeInsets.all(22),
-      decoration: decoration,
+      decoration: BoxDecoration(
+        color: FriendlyHomeScreen.surface,
+        borderRadius: BorderRadius.circular(36),
+        border: Border.all(color: FriendlyHomeScreen.border),
+        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 26, offset: Offset(0, 14))],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -392,7 +482,13 @@ class _GardenCard extends StatelessWidget {
               const SizedBox(height: 13),
               Text(title, style: const TextStyle(color: FriendlyHomeScreen.ink, fontSize: 36, height: .96, fontWeight: FontWeight.w900, letterSpacing: -1.15)),
             ])),
-            SvgPicture.asset(iconAsset, width: 78, height: 78),
+            Container(
+              width: 78,
+              height: 78,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: FriendlyHomeScreen.mint.withOpacity(.72), borderRadius: BorderRadius.circular(24)),
+              child: SvgPicture.asset(iconAsset),
+            ),
           ]),
           const SizedBox(height: 24),
           child,
@@ -421,22 +517,28 @@ class _ActionRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(22),
         onTap: () {
           HapticFeedback.selectionClick();
           onTap();
         },
         child: Ink(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(.92),
-            borderRadius: BorderRadius.circular(26),
+            color: Colors.white.withOpacity(.94),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(color: color.withOpacity(.18)),
           ),
           child: Row(children: [
-            SvgPicture.asset(iconAsset, width: 48, height: 48),
+            Container(
+              width: 48,
+              height: 48,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: color.withOpacity(.10), borderRadius: BorderRadius.circular(16)),
+              child: SvgPicture.asset(iconAsset),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.ink, fontWeight: FontWeight.w900, fontSize: 17)),
               const SizedBox(height: 3),
               Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700)),

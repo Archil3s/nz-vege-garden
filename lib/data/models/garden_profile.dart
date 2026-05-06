@@ -41,8 +41,4 @@ class GardenProfile {
       setupComplete: setupComplete ?? this.setupComplete,
     );
   }
-
-  bool isGrowing(String cropId) => growingCropIds.contains(cropId);
-  bool isWishlist(String cropId) => wishlistCropIds.contains(cropId);
-  bool isAvoided(String cropId) => avoidedCropIds.contains(cropId);
 }

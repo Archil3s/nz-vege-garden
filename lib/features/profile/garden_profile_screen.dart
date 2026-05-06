@@ -48,18 +48,17 @@ class _GardenProfileScreenState extends State<GardenProfileScreen> {
     final profile = await _profileRepository.loadProfile();
     final crops = await _dataRepository.loadCrops();
 
-    final cropById = {for (final crop in crops) crop.id: crop};
-
     return _ProfileData(
       settings: settings,
       profile: profile,
       crops: crops,
-      cropById: cropById,
+      cropById: {for (final crop in crops) crop.id: crop},
     );
   }
 
   Future<void> _openSetup() async {
     HapticFeedback.selectionClick();
+
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => const GardenProfileSetupScreen(),
@@ -67,9 +66,7 @@ class _GardenProfileScreenState extends State<GardenProfileScreen> {
     );
 
     if (changed == true && mounted) {
-      setState(() {
-        _profileFuture = _loadData();
-      });
+      setState(() => _profileFuture = _loadData());
     }
   }
 
@@ -91,7 +88,7 @@ class _GardenProfileScreenState extends State<GardenProfileScreen> {
         backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            tooltip: 'Edit My Garden',
+            tooltip: 'Edit passport',
             onPressed: _openSetup,
             icon: const Icon(Icons.edit_outlined),
           ),
@@ -118,13 +115,13 @@ class _GardenProfileScreenState extends State<GardenProfileScreen> {
             return const Center(child: Text('No profile data found.'));
           }
 
-          final growingCrops =
+          final growing =
               _cropsForIds(data.profile.growingCropIds, data.cropById);
-          final wishlistCrops =
+          final want =
               _cropsForIds(data.profile.wishlistCropIds, data.cropById);
-          final avoidedCrops =
+          final avoid =
               _cropsForIds(data.profile.avoidedCropIds, data.cropById);
-          final recommendedCrops = _recommendedCrops(data);
+          final recommended = _recommendedCrops(data);
 
           return Stack(
             children: [
@@ -148,64 +145,62 @@ class _GardenProfileScreenState extends State<GardenProfileScreen> {
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 112),
                 children: [
-                  _ProfileHero(
+                  _PassportHero(
                     settings: data.settings,
                     profile: data.profile,
-                    growingCount: growingCrops.length,
-                    wishlistCount: wishlistCrops.length,
+                    growingCount: growing.length,
+                    wantCount: want.length,
                     onEdit: _openSetup,
                   ),
                   const SizedBox(height: 14),
                   if (!data.profile.setupComplete)
-                    _GetStartedCard(onTap: _openSetup)
+                    _StartCard(onTap: _openSetup)
                   else ...[
-                    _GardenReadoutCard(
-                      settings: data.settings,
-                      profile: data.profile,
-                    ),
+                    _FocusCard(data: data),
                     const SizedBox(height: 14),
-                    _CropSection(
+                    _PlantShelf(
                       title: 'Growing now',
-                      subtitle:
-                          'These crops should get priority in advice and checks.',
+                      subtitle: 'Your active crops.',
                       icon: Icons.eco_outlined,
                       color: _leaf,
-                      crops: growingCrops,
-                      emptyText: 'No crops marked as growing yet.',
+                      crops: growing,
+                      emptyText: 'Add what is already in your garden.',
                       onCropTap: _openCrop,
+                      onAddTap: _openSetup,
                     ),
                     const SizedBox(height: 14),
-                    _CropSection(
+                    _PlantShelf(
                       title: 'Want to grow',
-                      subtitle: 'Use this as your planning shortlist.',
+                      subtitle: 'Your planning shortlist.',
                       icon: Icons.favorite_border,
                       color: _clay,
-                      crops: wishlistCrops,
-                      emptyText: 'No wishlist crops selected yet.',
+                      crops: want,
+                      emptyText: 'Add crops you are thinking about.',
                       onCropTap: _openCrop,
+                      onAddTap: _openSetup,
                     ),
                     const SizedBox(height: 14),
-                    _CropSection(
-                      title: 'Recommended next',
-                      subtitle:
-                          'Based on your goals, garden type, and current selections.',
+                    _PlantShelf(
+                      title: 'Good next picks',
+                      subtitle: 'Simple suggestions from your garden passport.',
                       icon: Icons.auto_awesome_outlined,
                       color: _moss,
-                      crops: recommendedCrops,
-                      emptyText:
-                          'Add goals and crops to improve recommendations.',
+                      crops: recommended,
+                      emptyText: 'Add your goals to improve suggestions.',
                       onCropTap: _openCrop,
+                      onAddTap: _openSetup,
                     ),
-                    if (avoidedCrops.isNotEmpty) ...[
+                    if (avoid.isNotEmpty) ...[
                       const SizedBox(height: 14),
-                      _CropSection(
-                        title: 'Avoid for now',
-                        subtitle: 'The app should avoid pushing these crops.',
+                      _PlantShelf(
+                        title: 'Skip for now',
+                        subtitle: 'The app should avoid pushing these.',
                         icon: Icons.block_outlined,
                         color: _berry,
-                        crops: avoidedCrops,
-                        emptyText: 'No avoided crops selected.',
+                        crops: avoid,
+                        emptyText: '',
                         onCropTap: _openCrop,
+                        onAddTap: _openSetup,
                       ),
                     ],
                   ],
@@ -243,11 +238,10 @@ class _GardenProfileScreenState extends State<GardenProfileScreen> {
         .toList(growable: false);
 
     candidates.sort((a, b) {
-      final aScore = _cropScore(a,
-          wantsContainers: wantsContainers, wantsBeginner: wantsBeginner);
-      final bScore = _cropScore(b,
-          wantsContainers: wantsContainers, wantsBeginner: wantsBeginner);
-      final scoreCompare = bScore.compareTo(aScore);
+      final scoreCompare =
+          _scoreCrop(b, wantsContainers, wantsBeginner).compareTo(
+        _scoreCrop(a, wantsContainers, wantsBeginner),
+      );
 
       if (scoreCompare != 0) {
         return scoreCompare;
@@ -256,14 +250,10 @@ class _GardenProfileScreenState extends State<GardenProfileScreen> {
       return a.commonName.compareTo(b.commonName);
     });
 
-    return candidates.take(6).toList(growable: false);
+    return candidates.take(8).toList(growable: false);
   }
 
-  int _cropScore(
-    Crop crop, {
-    required bool wantsContainers,
-    required bool wantsBeginner,
-  }) {
+  int _scoreCrop(Crop crop, bool wantsContainers, bool wantsBeginner) {
     var score = 0;
 
     if (wantsContainers && crop.containerFriendly) {
@@ -286,19 +276,19 @@ class _GardenProfileScreenState extends State<GardenProfileScreen> {
   }
 }
 
-class _ProfileHero extends StatelessWidget {
-  const _ProfileHero({
+class _PassportHero extends StatelessWidget {
+  const _PassportHero({
     required this.settings,
     required this.profile,
     required this.growingCount,
-    required this.wishlistCount,
+    required this.wantCount,
     required this.onEdit,
   });
 
   final AppSettings settings;
   final GardenProfile profile;
   final int growingCount;
-  final int wishlistCount;
+  final int wantCount;
   final VoidCallback onEdit;
 
   @override
@@ -339,10 +329,10 @@ class _ProfileHero extends StatelessWidget {
                       '${_formatValue(settings.regionId)} · ${_formatValue(settings.gardenType)}'),
               const SizedBox(height: 20),
               const Text(
-                'My Garden',
+                'Garden\nPassport',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 39,
+                  fontSize: 38,
                   height: .94,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -1.2,
@@ -351,8 +341,8 @@ class _ProfileHero extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 profile.setupComplete
-                    ? '$growingCount growing now · $wishlistCount want to grow · ${profile.goalIds.length} garden goals.'
-                    : 'Set up your garden once so the app can prioritise the crops, jobs, and risks that matter.',
+                    ? '$growingCount growing · $wantCount planned · ${profile.goalIds.length} goals.'
+                    : 'A lighter way to tell the app what your garden is like.',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: .86),
                   fontWeight: FontWeight.w700,
@@ -375,8 +365,8 @@ class _ProfileHero extends StatelessWidget {
                         Expanded(
                           child: Text(
                             profile.setupComplete
-                                ? 'Edit My Garden profile'
-                                : 'Set up My Garden',
+                                ? 'Tune my passport'
+                                : 'Create passport',
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.white,
@@ -398,46 +388,43 @@ class _ProfileHero extends StatelessWidget {
   }
 }
 
-class _GetStartedCard extends StatelessWidget {
-  const _GetStartedCard({required this.onTap});
+class _StartCard extends StatelessWidget {
+  const _StartCard({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return _Panel(
-      title: 'Start with your real garden',
+      title: 'Start small',
       subtitle:
-          'Pick your crops, goals, frost risk, and garden type. This makes the app much more useful.',
+          'Choose a garden style, a few goals, and a few crops. Skip anything you are unsure about.',
       icon: Icons.rocket_launch_outlined,
       color: _leaf,
       children: [
         FilledButton.icon(
           onPressed: onTap,
           icon: const Icon(Icons.yard_outlined),
-          label: const Text('Set up My Garden'),
+          label: const Text('Create Garden Passport'),
         ),
       ],
     );
   }
 }
 
-class _GardenReadoutCard extends StatelessWidget {
-  const _GardenReadoutCard({
-    required this.settings,
-    required this.profile,
-  });
+class _FocusCard extends StatelessWidget {
+  const _FocusCard({required this.data});
 
-  final AppSettings settings;
-  final GardenProfile profile;
+  final _ProfileData data;
 
   @override
   Widget build(BuildContext context) {
+    final focus = _focusText(data);
+
     return _Panel(
-      title: 'Garden readout',
-      subtitle:
-          'This is the context the app can use to make advice more personal.',
-      icon: Icons.tune_outlined,
+      title: 'Your garden focus',
+      subtitle: focus,
+      icon: Icons.center_focus_strong_outlined,
       color: _leaf,
       children: [
         Wrap(
@@ -445,32 +432,51 @@ class _GardenReadoutCard extends StatelessWidget {
           runSpacing: 8,
           children: [
             _SmallTag(
-                label: 'Region: ${_formatValue(settings.regionId)}',
-                color: _leaf),
+                label: _formatValue(data.settings.gardenType), color: _leaf),
             _SmallTag(
-                label: 'Garden: ${_formatValue(settings.gardenType)}',
-                color: _moss),
-            _SmallTag(
-                label: 'Frost: ${_formatValue(settings.frostRisk)}',
+                label: '${_formatValue(data.settings.frostRisk)} frost',
                 color: _clay),
             _SmallTag(
-                label: 'Wind: ${_formatValue(settings.windExposure)}',
+                label: '${_formatValue(data.settings.windExposure)} wind',
                 color: _leafDark),
             _SmallTag(
-                label: 'Level: ${_formatValue(profile.experienceLevel)}',
-                color: _berry),
-            ...profile.goalIds.map(
-              (goalId) => _SmallTag(label: _formatValue(goalId), color: _leaf),
-            ),
+                label: _formatValue(data.profile.experienceLevel),
+                color: _moss),
+            ...data.profile.goalIds.take(4).map(
+                  (goalId) =>
+                      _SmallTag(label: _formatValue(goalId), color: _berry),
+                ),
           ],
         ),
       ],
     );
   }
+
+  String _focusText(_ProfileData data) {
+    if (data.profile.goalIds.contains('containers') ||
+        data.settings.gardenType == 'container') {
+      return 'Prioritise container-friendly crops and regular watering checks.';
+    }
+
+    if (data.profile.goalIds.contains('beginner_friendly') ||
+        data.profile.experienceLevel == 'beginner') {
+      return 'Prioritise easy crops, simple jobs, and clear next steps.';
+    }
+
+    if (data.profile.goalIds.contains('pest_control')) {
+      return 'Prioritise pest watch-outs and prevention before problems spread.';
+    }
+
+    if (data.profile.goalIds.contains('year_round')) {
+      return 'Prioritise succession sowing and crops that keep the garden producing.';
+    }
+
+    return 'Keep advice focused on your saved crops and local conditions.';
+  }
 }
 
-class _CropSection extends StatelessWidget {
-  const _CropSection({
+class _PlantShelf extends StatelessWidget {
+  const _PlantShelf({
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -478,6 +484,7 @@ class _CropSection extends StatelessWidget {
     required this.crops,
     required this.emptyText,
     required this.onCropTap,
+    required this.onAddTap,
   });
 
   final String title;
@@ -487,6 +494,7 @@ class _CropSection extends StatelessWidget {
   final List<Crop> crops;
   final String emptyText;
   final ValueChanged<Crop> onCropTap;
+  final VoidCallback onAddTap;
 
   @override
   Widget build(BuildContext context) {
@@ -497,20 +505,28 @@ class _CropSection extends StatelessWidget {
       color: color,
       children: [
         if (crops.isEmpty)
-          Text(
-            emptyText,
-            style: const TextStyle(
-              color: _muted,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
+          _EmptyShelf(
+            text: emptyText,
+            color: color,
+            onTap: onAddTap,
           )
         else
-          ...crops.map(
-            (crop) => _CropRow(
-              crop: crop,
-              color: color,
-              onTap: () => onCropTap(crop),
+          SizedBox(
+            height: 154,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: crops.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final crop = crops[index];
+
+                return _CropCard(
+                  crop: crop,
+                  color: color,
+                  onTap: () => onCropTap(crop),
+                );
+              },
             ),
           ),
       ],
@@ -518,8 +534,8 @@ class _CropSection extends StatelessWidget {
   }
 }
 
-class _CropRow extends StatelessWidget {
-  const _CropRow({
+class _CropCard extends StatelessWidget {
+  const _CropCard({
     required this.crop,
     required this.color,
     required this.onTap,
@@ -531,47 +547,90 @@ class _CropRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SizedBox(
+      width: 148,
+      child: Material(
+        color: color.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _IconBubble(
+                  icon: crop.containerFriendly
+                      ? Icons.inventory_2_outlined
+                      : Icons.eco_outlined,
+                  color: color,
+                  size: 42,
+                ),
+                const Spacer(),
+                Text(
+                  crop.commonName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${crop.spacingCm} cm · ${crop.daysToHarvestMin}-${crop.daysToHarvestMax}d',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyShelf extends StatelessWidget {
+  const _EmptyShelf({
+    required this.text,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String text;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: color.withValues(alpha: .10),
+      borderRadius: BorderRadius.circular(22),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              _IconBubble(
-                icon: crop.containerFriendly
-                    ? Icons.inventory_2_outlined
-                    : Icons.eco_outlined,
-                color: color,
-                size: 44,
-              ),
+              Icon(Icons.add_circle_outline, color: color),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      crop.commonName,
-                      style: const TextStyle(
-                        color: _ink,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${crop.spacingCm} cm · ${crop.daysToHarvestMin}-${crop.daysToHarvestMax} days',
-                      style: const TextStyle(
-                        color: _muted,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  text,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              Icon(Icons.chevron_right, color: color),
             ],
           ),
         ),

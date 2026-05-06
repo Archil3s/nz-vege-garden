@@ -33,14 +33,21 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
   final _settingsRepository = const AppSettingsRepository();
   final _profileRepository = const GardenProfileRepository();
   final _dataRepository = const GardenDataRepository();
+  final _searchController = TextEditingController();
 
-  late Future<_SetupData> _setupFuture;
+  late Future<List<Crop>> _cropsFuture;
+
+  int _step = 0;
+  String _shelfMode = 'growing';
+  String _search = '';
 
   String _regionId = AppSettings.defaultSettings.regionId;
   String _frostRisk = AppSettings.defaultSettings.frostRisk;
   String _windExposure = AppSettings.defaultSettings.windExposure;
   String _gardenType = AppSettings.defaultSettings.gardenType;
   String _experienceLevel = GardenProfile.defaultProfile.experienceLevel;
+  bool _weeklyReminderEnabled =
+      AppSettings.defaultSettings.weeklyReminderEnabled;
 
   final Set<String> _growingCropIds = {};
   final Set<String> _wishlistCropIds = {};
@@ -50,10 +57,16 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
   @override
   void initState() {
     super.initState();
-    _setupFuture = _loadData();
+    _cropsFuture = _loadData();
   }
 
-  Future<_SetupData> _loadData() async {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<List<Crop>> _loadData() async {
     final settings = await _settingsRepository.loadSettings();
     final profile = await _profileRepository.loadProfile();
     final crops = await _dataRepository.loadCrops();
@@ -62,6 +75,7 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
     _frostRisk = settings.frostRisk;
     _windExposure = settings.windExposure;
     _gardenType = settings.gardenType;
+    _weeklyReminderEnabled = settings.weeklyReminderEnabled;
     _experienceLevel = profile.experienceLevel;
 
     _growingCropIds
@@ -77,75 +91,177 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
       ..clear()
       ..addAll(profile.goalIds);
 
-    final sortedCrops = [...crops]
-      ..sort((a, b) => a.commonName.compareTo(b.commonName));
-
-    return _SetupData(crops: sortedCrops);
+    return [...crops]..sort((a, b) => a.commonName.compareTo(b.commonName));
   }
 
   Future<void> _save() async {
     HapticFeedback.selectionClick();
 
-    final settings = AppSettings(
-      regionId: _regionId,
-      frostRisk: _frostRisk,
-      windExposure: _windExposure,
-      gardenType: _gardenType,
-      weeklyReminderEnabled: AppSettings.defaultSettings.weeklyReminderEnabled,
+    await _settingsRepository.saveSettings(
+      AppSettings(
+        regionId: _regionId,
+        frostRisk: _frostRisk,
+        windExposure: _windExposure,
+        gardenType: _gardenType,
+        weeklyReminderEnabled: _weeklyReminderEnabled,
+      ),
     );
 
-    final profile = GardenProfile(
-      growingCropIds: _growingCropIds.toList()..sort(),
-      wishlistCropIds: _wishlistCropIds.toList()..sort(),
-      avoidedCropIds: _avoidedCropIds.toList()..sort(),
-      goalIds: _goalIds.toList()..sort(),
-      experienceLevel: _experienceLevel,
-      setupComplete: true,
+    await _profileRepository.saveProfile(
+      GardenProfile(
+        growingCropIds: _growingCropIds.toList()..sort(),
+        wishlistCropIds: _wishlistCropIds.toList()..sort(),
+        avoidedCropIds: _avoidedCropIds.toList()..sort(),
+        goalIds: _goalIds.toList()..sort(),
+        experienceLevel: _experienceLevel,
+        setupComplete: true,
+      ),
     );
-
-    await _settingsRepository.saveSettings(settings);
-    await _profileRepository.saveProfile(profile);
 
     if (!mounted) {
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('My Garden profile saved.')),
+      const SnackBar(content: Text('Garden Passport saved.')),
     );
 
     Navigator.of(context).pop(true);
   }
 
-  void _toggleCrop(Set<String> target, String cropId) {
+  void _next() {
+    HapticFeedback.selectionClick();
+
+    if (_step == 2) {
+      _save();
+      return;
+    }
+
+    setState(() => _step += 1);
+  }
+
+  void _back() {
+    HapticFeedback.selectionClick();
+
+    if (_step == 0) {
+      Navigator.of(context).pop(false);
+      return;
+    }
+
+    setState(() => _step -= 1);
+  }
+
+  Set<String> get _activeShelf {
+    return switch (_shelfMode) {
+      'want' => _wishlistCropIds,
+      'avoid' => _avoidedCropIds,
+      _ => _growingCropIds,
+    };
+  }
+
+  Color get _activeShelfColor {
+    return switch (_shelfMode) {
+      'want' => _clay,
+      'avoid' => _berry,
+      _ => _leaf,
+    };
+  }
+
+  String get _activeShelfLabel {
+    return switch (_shelfMode) {
+      'want' => 'Want to grow',
+      'avoid' => 'Skip for now',
+      _ => 'Growing now',
+    };
+  }
+
+  void _toggleCrop(String cropId) {
     setState(() {
-      if (target.contains(cropId)) {
-        target.remove(cropId);
-      } else {
-        target.add(cropId);
+      final active = _activeShelf;
+
+      if (active.contains(cropId)) {
+        active.remove(cropId);
+        return;
       }
 
-      if (target == _growingCropIds) {
+      _growingCropIds.remove(cropId);
+      _wishlistCropIds.remove(cropId);
+      _avoidedCropIds.remove(cropId);
+
+      active.add(cropId);
+    });
+  }
+
+  void _applyPack(List<String> cropIds, List<Crop> allCrops) {
+    HapticFeedback.selectionClick();
+
+    final availableIds = allCrops.map((crop) => crop.id).toSet();
+
+    setState(() {
+      for (final cropId in cropIds.where(availableIds.contains)) {
+        _growingCropIds.remove(cropId);
         _wishlistCropIds.remove(cropId);
         _avoidedCropIds.remove(cropId);
-      } else if (target == _wishlistCropIds) {
-        _growingCropIds.remove(cropId);
-        _avoidedCropIds.remove(cropId);
-      } else if (target == _avoidedCropIds) {
-        _growingCropIds.remove(cropId);
-        _wishlistCropIds.remove(cropId);
+        _activeShelf.add(cropId);
       }
     });
   }
 
-  void _toggleGoal(String goalId) {
-    setState(() {
-      if (_goalIds.contains(goalId)) {
-        _goalIds.remove(goalId);
-      } else {
-        _goalIds.add(goalId);
+  List<Crop> _visibleCrops(List<Crop> crops) {
+    final query = _search.trim().toLowerCase();
+
+    final filtered = crops.where((crop) {
+      if (query.isEmpty) {
+        return true;
       }
+
+      return [
+        crop.commonName,
+        crop.category,
+        crop.summary,
+        crop.sunRequirement,
+        crop.waterRequirement,
+      ].join(' ').toLowerCase().contains(query);
+    }).toList(growable: false);
+
+    filtered.sort((a, b) {
+      final scoreCompare = _cropScore(b).compareTo(_cropScore(a));
+      if (scoreCompare != 0) {
+        return scoreCompare;
+      }
+
+      return a.commonName.compareTo(b.commonName);
     });
+
+    return query.isEmpty
+        ? filtered.take(28).toList(growable: false)
+        : filtered.take(80).toList(growable: false);
+  }
+
+  int _cropScore(Crop crop) {
+    var score = 0;
+
+    if (crop.beginnerFriendly) {
+      score += 20;
+    }
+
+    if (crop.containerFriendly) {
+      score += 12;
+    }
+
+    if (!crop.frostTender) {
+      score += 6;
+    }
+
+    if (crop.waterRequirement == 'regular') {
+      score += 4;
+    }
+
+    if (_activeShelf.contains(crop.id)) {
+      score += 40;
+    }
+
+    return score;
   }
 
   @override
@@ -153,11 +269,11 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
     return Scaffold(
       backgroundColor: _canvas,
       appBar: AppBar(
-        title: const Text('Set up My Garden'),
+        title: const Text('Garden Passport'),
         backgroundColor: Colors.transparent,
       ),
-      body: FutureBuilder<_SetupData>(
-        future: _setupFuture,
+      body: FutureBuilder<List<Crop>>(
+        future: _cropsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -167,12 +283,12 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text('Could not load setup data: ${snapshot.error}'),
+                child: Text('Could not load setup: ${snapshot.error}'),
               ),
             );
           }
 
-          final crops = snapshot.data?.crops ?? const <Crop>[];
+          final crops = snapshot.data ?? const <Crop>[];
 
           return Stack(
             children: [
@@ -194,151 +310,24 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
               ),
               ListView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 126),
                 children: [
-                  _SetupHero(
+                  _PassportHero(
+                    step: _step,
                     growingCount: _growingCropIds.length,
-                    wishlistCount: _wishlistCropIds.length,
+                    wantCount: _wishlistCropIds.length,
                     goalCount: _goalIds.length,
                   ),
                   const SizedBox(height: 14),
-                  _SetupPanel(
-                    title: '1. Your garden conditions',
-                    subtitle:
-                        'These settings make advice more local and realistic.',
-                    icon: Icons.tune_outlined,
-                    color: _leaf,
-                    children: [
-                      _DropdownField(
-                        label: 'NZ region',
-                        value: _regionId,
-                        items: const {
-                          'northland': 'Northland',
-                          'auckland': 'Auckland',
-                          'waikato': 'Waikato',
-                          'bay_of_plenty': 'Bay of Plenty',
-                          'gisborne': 'Gisborne',
-                          'hawkes_bay': 'Hawkes Bay',
-                          'taranaki': 'Taranaki',
-                          'manawatu': 'Manawatū',
-                          'wellington': 'Wellington',
-                          'tasman': 'Tasman',
-                          'nelson': 'Nelson',
-                          'marlborough': 'Marlborough',
-                          'west_coast': 'West Coast',
-                          'canterbury': 'Canterbury',
-                          'otago': 'Otago',
-                          'southland': 'Southland',
-                        },
-                        onChanged: (value) => setState(() => _regionId = value),
-                      ),
-                      const SizedBox(height: 10),
-                      _DropdownField(
-                        label: 'Garden type',
-                        value: _gardenType,
-                        items: const {
-                          'raised_bed': 'Raised beds',
-                          'in_ground': 'In-ground beds',
-                          'container': 'Pots and containers',
-                          'greenhouse': 'Greenhouse / tunnelhouse',
-                          'mixed': 'Mixed garden',
-                        },
-                        onChanged: (value) =>
-                            setState(() => _gardenType = value),
-                      ),
-                      const SizedBox(height: 10),
-                      _DropdownField(
-                        label: 'Frost risk',
-                        value: _frostRisk,
-                        items: const {
-                          'low': 'Low',
-                          'moderate': 'Moderate',
-                          'high': 'High',
-                        },
-                        onChanged: (value) =>
-                            setState(() => _frostRisk = value),
-                      ),
-                      const SizedBox(height: 10),
-                      _DropdownField(
-                        label: 'Wind exposure',
-                        value: _windExposure,
-                        items: const {
-                          'sheltered': 'Sheltered',
-                          'moderate': 'Moderate',
-                          'exposed': 'Exposed',
-                        },
-                        onChanged: (value) =>
-                            setState(() => _windExposure = value),
-                      ),
-                      const SizedBox(height: 10),
-                      _DropdownField(
-                        label: 'Experience',
-                        value: _experienceLevel,
-                        items: const {
-                          'beginner': 'Beginner',
-                          'confident': 'Confident',
-                          'experienced': 'Experienced',
-                        },
-                        onChanged: (value) =>
-                            setState(() => _experienceLevel = value),
-                      ),
-                    ],
-                  ),
+                  _StepDots(step: _step),
                   const SizedBox(height: 14),
-                  _SetupPanel(
-                    title: '2. Your garden goals',
-                    subtitle:
-                        'The app can prioritise advice around what matters to you.',
-                    icon: Icons.flag_outlined,
-                    color: _moss,
-                    children: [
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _goalOptions.map((goal) {
-                          final selected = _goalIds.contains(goal.id);
-
-                          return FilterChip(
-                            avatar: Icon(goal.icon, size: 18),
-                            label: Text(goal.label),
-                            selected: selected,
-                            onSelected: (_) => _toggleGoal(goal.id),
-                          );
-                        }).toList(growable: false),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _CropPickerPanel(
-                    title: '3. Crops growing now',
-                    subtitle:
-                        'These get priority in advice, pest help, and garden jobs.',
-                    icon: Icons.eco_outlined,
-                    color: _leaf,
-                    crops: crops,
-                    selectedIds: _growingCropIds,
-                    onToggle: (cropId) => _toggleCrop(_growingCropIds, cropId),
-                  ),
-                  const SizedBox(height: 14),
-                  _CropPickerPanel(
-                    title: '4. Crops you want to grow',
-                    subtitle: 'Useful for planning what to sow next.',
-                    icon: Icons.favorite_border,
-                    color: _clay,
-                    crops: crops,
-                    selectedIds: _wishlistCropIds,
-                    onToggle: (cropId) => _toggleCrop(_wishlistCropIds, cropId),
-                  ),
-                  const SizedBox(height: 14),
-                  _CropPickerPanel(
-                    title: '5. Crops to avoid',
-                    subtitle:
-                        'Use this for crops you do not want the app to push.',
-                    icon: Icons.block_outlined,
-                    color: _berry,
-                    crops: crops,
-                    selectedIds: _avoidedCropIds,
-                    onToggle: (cropId) => _toggleCrop(_avoidedCropIds, cropId),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: switch (_step) {
+                      0 => _buildGardenStyleStep(),
+                      1 => _buildGoalStep(),
+                      _ => _buildPlantShelfStep(crops),
+                    },
                   ),
                 ],
               ),
@@ -347,10 +336,27 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
                 right: 16,
                 bottom: 16,
                 child: SafeArea(
-                  child: FilledButton.icon(
-                    onPressed: _save,
-                    icon: const Icon(Icons.save_outlined),
-                    label: const Text('Save My Garden profile'),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _back,
+                          icon:
+                              Icon(_step == 0 ? Icons.close : Icons.arrow_back),
+                          label: Text(_step == 0 ? 'Cancel' : 'Back'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _next,
+                          icon: Icon(_step == 2
+                              ? Icons.save_outlined
+                              : Icons.arrow_forward),
+                          label: Text(_step == 2 ? 'Save' : 'Next'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -360,21 +366,336 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
       ),
     );
   }
+
+  Widget _buildGardenStyleStep() {
+    return Column(
+      key: const ValueKey('style'),
+      children: [
+        _Panel(
+          title: 'Pick your garden style',
+          subtitle: 'One choice is enough. You can change it later.',
+          icon: Icons.yard_outlined,
+          color: _leaf,
+          children: [
+            _BigChoiceGrid(
+              selectedValue: _gardenType,
+              choices: const [
+                _ChoiceData(
+                  value: 'raised_bed',
+                  title: 'Raised beds',
+                  subtitle: 'Easy access, tidy rows',
+                  icon: Icons.crop_square_outlined,
+                  color: _leaf,
+                ),
+                _ChoiceData(
+                  value: 'container',
+                  title: 'Pots',
+                  subtitle: 'Balcony, patio, small space',
+                  icon: Icons.inventory_2_outlined,
+                  color: _clay,
+                ),
+                _ChoiceData(
+                  value: 'in_ground',
+                  title: 'In-ground',
+                  subtitle: 'Traditional garden beds',
+                  icon: Icons.grass_outlined,
+                  color: _moss,
+                ),
+                _ChoiceData(
+                  value: 'greenhouse',
+                  title: 'Greenhouse',
+                  subtitle: 'Sheltered warm growing',
+                  icon: Icons.foundation_outlined,
+                  color: _leafDark,
+                ),
+                _ChoiceData(
+                  value: 'mixed',
+                  title: 'Mixed',
+                  subtitle: 'A bit of everything',
+                  icon: Icons.auto_awesome_mosaic_outlined,
+                  color: _berry,
+                ),
+              ],
+              onSelected: (value) => setState(() => _gardenType = value),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _Panel(
+          title: 'Conditions',
+          subtitle: 'Keep this simple. Use your best guess.',
+          icon: Icons.tune_outlined,
+          color: _moss,
+          children: [
+            _DropdownField(
+              label: 'Region',
+              value: _regionId,
+              items: const {
+                'northland': 'Northland',
+                'auckland': 'Auckland',
+                'waikato': 'Waikato',
+                'bay_of_plenty': 'Bay of Plenty',
+                'gisborne': 'Gisborne',
+                'hawkes_bay': 'Hawkes Bay',
+                'taranaki': 'Taranaki',
+                'manawatu': 'Manawatū',
+                'wellington': 'Wellington',
+                'tasman': 'Tasman',
+                'nelson': 'Nelson',
+                'marlborough': 'Marlborough',
+                'west_coast': 'West Coast',
+                'canterbury': 'Canterbury',
+                'otago': 'Otago',
+                'southland': 'Southland',
+              },
+              onChanged: (value) => setState(() => _regionId = value),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _DropdownField(
+                    label: 'Frost',
+                    value: _frostRisk,
+                    items: const {
+                      'low': 'Low',
+                      'moderate': 'Moderate',
+                      'high': 'High',
+                    },
+                    onChanged: (value) => setState(() => _frostRisk = value),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _DropdownField(
+                    label: 'Wind',
+                    value: _windExposure,
+                    items: const {
+                      'sheltered': 'Sheltered',
+                      'moderate': 'Moderate',
+                      'exposed': 'Exposed',
+                    },
+                    onChanged: (value) => setState(() => _windExposure = value),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGoalStep() {
+    return Column(
+      key: const ValueKey('goals'),
+      children: [
+        _Panel(
+          title: 'Choose your garden vibe',
+          subtitle: 'Pick only what matters. This keeps advice focused.',
+          icon: Icons.flag_outlined,
+          color: _leaf,
+          children: [
+            _BigChoiceGrid(
+              selectedValue: _experienceLevel,
+              choices: const [
+                _ChoiceData(
+                  value: 'beginner',
+                  title: 'Beginner',
+                  subtitle: 'Tell me what to do',
+                  icon: Icons.sentiment_satisfied_alt_outlined,
+                  color: _leaf,
+                ),
+                _ChoiceData(
+                  value: 'confident',
+                  title: 'Confident',
+                  subtitle: 'I know the basics',
+                  icon: Icons.psychology_alt_outlined,
+                  color: _clay,
+                ),
+                _ChoiceData(
+                  value: 'experienced',
+                  title: 'Experienced',
+                  subtitle: 'Give me shortcuts',
+                  icon: Icons.bolt_outlined,
+                  color: _berry,
+                ),
+              ],
+              onSelected: (value) => setState(() => _experienceLevel = value),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _Panel(
+          title: 'What should the app care about?',
+          subtitle: 'These become your advice filters.',
+          icon: Icons.auto_awesome_outlined,
+          color: _moss,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _goalOptions.map((goal) {
+                final selected = _goalIds.contains(goal.id);
+
+                return FilterChip(
+                  avatar: Icon(goal.icon, size: 18),
+                  label: Text(goal.label),
+                  selected: selected,
+                  onSelected: (_) {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      if (selected) {
+                        _goalIds.remove(goal.id);
+                      } else {
+                        _goalIds.add(goal.id);
+                      }
+                    });
+                  },
+                );
+              }).toList(growable: false),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlantShelfStep(List<Crop> crops) {
+    final visibleCrops = _visibleCrops(crops);
+
+    return Column(
+      key: const ValueKey('plants'),
+      children: [
+        _Panel(
+          title: 'Build your Plant Shelf',
+          subtitle:
+              'Only use one shelf at a time. Search if the crop is not shown.',
+          icon: Icons.local_florist_outlined,
+          color: _activeShelfColor,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _ShelfChip(
+                  value: 'growing',
+                  label: 'Growing',
+                  icon: Icons.eco_outlined,
+                  color: _leaf,
+                  selectedValue: _shelfMode,
+                  onSelected: (value) => setState(() => _shelfMode = value),
+                ),
+                _ShelfChip(
+                  value: 'want',
+                  label: 'Want',
+                  icon: Icons.favorite_border,
+                  color: _clay,
+                  selectedValue: _shelfMode,
+                  onSelected: (value) => setState(() => _shelfMode = value),
+                ),
+                _ShelfChip(
+                  value: 'avoid',
+                  label: 'Avoid',
+                  icon: Icons.block_outlined,
+                  color: _berry,
+                  selectedValue: _shelfMode,
+                  onSelected: (value) => setState(() => _shelfMode = value),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Find a crop',
+                hintText: 'Tomato, garlic, lettuce...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _search.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _search = '');
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              onChanged: (value) => setState(() => _search = value),
+            ),
+            const SizedBox(height: 14),
+            _StarterPacks(
+              shelfLabel: _activeShelfLabel,
+              color: _activeShelfColor,
+              onPackSelected: (ids) => _applyPack(ids, crops),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              _search.isEmpty
+                  ? 'Showing the easiest picks first. Search to find more.'
+                  : '${visibleCrops.length} matching crops.',
+              style: const TextStyle(
+                color: _muted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: visibleCrops.map((crop) {
+                final selected = _activeShelf.contains(crop.id);
+
+                return FilterChip(
+                  avatar: Icon(
+                    crop.containerFriendly
+                        ? Icons.inventory_2_outlined
+                        : Icons.eco_outlined,
+                    size: 18,
+                  ),
+                  label: Text(crop.commonName),
+                  selected: selected,
+                  onSelected: (_) => _toggleCrop(crop.id),
+                );
+              }).toList(growable: false),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
-class _SetupHero extends StatelessWidget {
-  const _SetupHero({
+class _PassportHero extends StatelessWidget {
+  const _PassportHero({
+    required this.step,
     required this.growingCount,
-    required this.wishlistCount,
+    required this.wantCount,
     required this.goalCount,
   });
 
+  final int step;
   final int growingCount;
-  final int wishlistCount;
+  final int wantCount;
   final int goalCount;
 
   @override
   Widget build(BuildContext context) {
+    final title = switch (step) {
+      0 => 'Your garden\npassport',
+      1 => 'Your garden\nstyle',
+      _ => 'Your plant\nshelf',
+    };
+
+    final subtitle = switch (step) {
+      0 => 'Start with the basics. No pressure to be exact.',
+      1 => '$goalCount goals selected. Pick only what matters.',
+      _ => '$growingCount growing · $wantCount want to grow.',
+    };
+
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -406,11 +727,11 @@ class _SetupHero extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _GlassPill(label: 'My Garden setup'),
+              const _GlassPill(label: '3 quick steps'),
               const SizedBox(height: 20),
-              const Text(
-                'Make the app\nabout your garden',
-                style: TextStyle(
+              Text(
+                title,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 35,
                   height: .94,
@@ -420,7 +741,7 @@ class _SetupHero extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                '$growingCount growing now · $wishlistCount want to grow · $goalCount goals selected.',
+                subtitle,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: .86),
                   fontWeight: FontWeight.w700,
@@ -435,8 +756,35 @@ class _SetupHero extends StatelessWidget {
   }
 }
 
-class _SetupPanel extends StatelessWidget {
-  const _SetupPanel({
+class _StepDots extends StatelessWidget {
+  const _StepDots({required this.step});
+
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(3, (index) {
+        final active = index == step;
+
+        return Expanded(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 8,
+            margin: EdgeInsets.only(right: index == 2 ? 0 : 8),
+            decoration: BoxDecoration(
+              color: active ? _leaf : _border,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _Panel extends StatelessWidget {
+  const _Panel({
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -479,111 +827,6 @@ class _SetupPanel extends StatelessWidget {
           ...children,
         ],
       ),
-    );
-  }
-}
-
-class _CropPickerPanel extends StatelessWidget {
-  const _CropPickerPanel({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.crops,
-    required this.selectedIds,
-    required this.onToggle,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final List<Crop> crops;
-  final Set<String> selectedIds;
-  final ValueChanged<String> onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SetupPanel(
-      title: title,
-      subtitle: subtitle,
-      icon: icon,
-      color: color,
-      children: [
-        if (selectedIds.isNotEmpty) ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: selectedIds.take(8).map((id) {
-              final crop = crops.where((item) => item.id == id).firstOrNull;
-              return _SmallTag(
-                label: crop?.commonName ?? _formatValue(id),
-                color: color,
-              );
-            }).toList(growable: false),
-          ),
-          const SizedBox(height: 12),
-        ],
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: crops.map((crop) {
-            final selected = selectedIds.contains(crop.id);
-
-            return FilterChip(
-              avatar: Icon(
-                crop.containerFriendly
-                    ? Icons.inventory_2_outlined
-                    : Icons.eco_outlined,
-                size: 18,
-              ),
-              label: Text(crop.commonName),
-              selected: selected,
-              onSelected: (_) => onToggle(crop.id),
-            );
-          }).toList(growable: false),
-        ),
-      ],
-    );
-  }
-}
-
-class _DropdownField extends StatelessWidget {
-  const _DropdownField({
-    required this.label,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  final String label;
-  final String value;
-  final Map<String, String> items;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-      ),
-      items: items.entries
-          .map(
-            (entry) => DropdownMenuItem(
-              value: entry.key,
-              child: Text(entry.value),
-            ),
-          )
-          .toList(growable: false),
-      onChanged: (value) {
-        if (value != null) {
-          onChanged(value);
-        }
-      },
     );
   }
 }
@@ -637,6 +880,263 @@ class _PanelHeader extends StatelessWidget {
   }
 }
 
+class _BigChoiceGrid extends StatelessWidget {
+  const _BigChoiceGrid({
+    required this.selectedValue,
+    required this.choices,
+    required this.onSelected,
+  });
+
+  final String selectedValue;
+  final List<_ChoiceData> choices;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      itemCount: choices.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.16,
+      ),
+      itemBuilder: (context, index) {
+        final choice = choices[index];
+        final selected = selectedValue == choice.value;
+
+        return Material(
+          color: selected ? choice.color : Colors.white.withValues(alpha: .74),
+          borderRadius: BorderRadius.circular(24),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onSelected(choice.value);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: selected ? choice.color : _border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    choice.icon,
+                    color: selected ? Colors.white : choice.color,
+                  ),
+                  const Spacer(),
+                  Text(
+                    choice.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected ? Colors.white : _ink,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    choice.subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected
+                          ? Colors.white.withValues(alpha: .84)
+                          : _muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DropdownField extends StatelessWidget {
+  const _DropdownField({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String value;
+  final Map<String, String> items;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+      ),
+      items: items.entries
+          .map(
+            (entry) => DropdownMenuItem(
+              value: entry.key,
+              child: Text(entry.value),
+            ),
+          )
+          .toList(growable: false),
+      onChanged: (value) {
+        if (value != null) {
+          onChanged(value);
+        }
+      },
+    );
+  }
+}
+
+class _ShelfChip extends StatelessWidget {
+  const _ShelfChip({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.selectedValue,
+    required this.onSelected,
+  });
+
+  final String value;
+  final String label;
+  final IconData icon;
+  final Color color;
+  final String selectedValue;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = value == selectedValue;
+
+    return ChoiceChip(
+      avatar: Icon(
+        icon,
+        size: 18,
+        color: selected ? Colors.white : color,
+      ),
+      label: Text(label),
+      selected: selected,
+      selectedColor: color,
+      backgroundColor: _surface,
+      side: BorderSide(color: selected ? color : _border),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : _ink,
+        fontWeight: FontWeight.w900,
+      ),
+      onSelected: (_) => onSelected(value),
+    );
+  }
+}
+
+class _StarterPacks extends StatelessWidget {
+  const _StarterPacks({
+    required this.shelfLabel,
+    required this.color,
+    required this.onPackSelected,
+  });
+
+  final String shelfLabel;
+  final Color color;
+  final ValueChanged<List<String>> onPackSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final packs = [
+      const _PackData(
+        title: 'Easy salad',
+        cropIds: ['lettuce', 'rocket', 'radish', 'spring_onion', 'parsley'],
+      ),
+      const _PackData(
+        title: 'Container picks',
+        cropIds: [
+          'lettuce',
+          'chilli',
+          'tomato',
+          'spring_onion',
+          'basil',
+          'parsley'
+        ],
+      ),
+      const _PackData(
+        title: 'Winter hardy',
+        cropIds: ['kale', 'silverbeet', 'broad_beans', 'garlic', 'peas'],
+      ),
+      const _PackData(
+        title: 'Summer food',
+        cropIds: ['tomato', 'courgette', 'cucumber', 'dwarf_beans', 'basil'],
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$shelfLabel starter packs',
+          style: const TextStyle(
+            color: _ink,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: packs.map((pack) {
+            return ActionChip(
+              avatar: Icon(Icons.auto_awesome_outlined, color: color, size: 18),
+              label: Text(pack.title),
+              onPressed: () => onPackSelected(pack.cropIds),
+            );
+          }).toList(growable: false),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChoiceData {
+  const _ChoiceData({
+    required this.value,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+  });
+
+  final String value;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+}
+
+class _PackData {
+  const _PackData({
+    required this.title,
+    required this.cropIds,
+  });
+
+  final String title;
+  final List<String> cropIds;
+}
+
 class _GoalOption {
   const _GoalOption({
     required this.id,
@@ -649,12 +1149,6 @@ class _GoalOption {
   final IconData icon;
 }
 
-class _SetupData {
-  const _SetupData({required this.crops});
-
-  final List<Crop> crops;
-}
-
 const _goalOptions = [
   _GoalOption(
     id: 'food_production',
@@ -663,27 +1157,27 @@ const _goalOptions = [
   ),
   _GoalOption(
     id: 'beginner_friendly',
-    label: 'Beginner friendly',
+    label: 'Keep it easy',
     icon: Icons.sentiment_satisfied_alt_outlined,
   ),
   _GoalOption(
     id: 'containers',
-    label: 'Containers',
+    label: 'Small spaces',
     icon: Icons.inventory_2_outlined,
   ),
   _GoalOption(
     id: 'pest_control',
-    label: 'Pest control',
+    label: 'Fewer pests',
     icon: Icons.bug_report_outlined,
   ),
   _GoalOption(
     id: 'water_saving',
-    label: 'Water saving',
+    label: 'Save water',
     icon: Icons.water_drop_outlined,
   ),
   _GoalOption(
     id: 'year_round',
-    label: 'Year-round harvests',
+    label: 'Year-round food',
     icon: Icons.calendar_month_outlined,
   ),
 ];
@@ -709,30 +1203,6 @@ class _IconBubble extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * .36),
       ),
       child: Icon(icon, color: color, size: size * .48),
-    );
-  }
-}
-
-class _SmallTag extends StatelessWidget {
-  const _SmallTag({
-    required this.label,
-    required this.color,
-  });
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      label: Text(label),
-      visualDensity: VisualDensity.compact,
-      backgroundColor: color.withValues(alpha: .12),
-      side: BorderSide.none,
-      labelStyle: TextStyle(
-        color: color,
-        fontWeight: FontWeight.w900,
-      ),
     );
   }
 }
@@ -784,24 +1254,5 @@ class _SoftBlob extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-String _formatValue(String value) {
-  return value
-      .split('_')
-      .map((word) =>
-          word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
-      .join(' ');
-}
-
-extension _FirstOrNull<T> on Iterable<T> {
-  T? get firstOrNull {
-    final iterator = this.iterator;
-    if (iterator.moveNext()) {
-      return iterator.current;
-    }
-
-    return null;
   }
 }

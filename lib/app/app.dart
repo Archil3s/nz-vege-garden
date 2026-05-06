@@ -5,6 +5,7 @@ import '../features/calendar/crop_calendar_screen.dart';
 import '../features/crops/crop_guide_screen.dart';
 import '../features/home/friendly_home_screen.dart';
 import '../features/insights/insights_screen.dart';
+import '../features/journal/garden_journal_screen.dart';
 import '../features/pests/pest_guide_screen.dart';
 import '../features/pruning/pruning_guide_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -140,6 +141,12 @@ class _MoreScreen extends StatelessWidget {
           _MoreSectionCard(
             title: 'Planning',
             children: [
+              _MoreSectionTile(
+                icon: Icons.edit_note_outlined,
+                title: 'Garden journal',
+                description: 'Save offline observations, harvest notes, pest sightings, and ideas.',
+                onTap: () => onOpenSection(const GardenJournalScreen()),
+              ),
               _MoreSectionTile(
                 icon: Icons.menu_book_outlined,
                 title: 'Crop guide',

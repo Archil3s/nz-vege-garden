@@ -50,6 +50,22 @@ class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
       appBar: AppBar(
         title: const Text('NZ Veg Garden'),
         backgroundColor: Colors.transparent,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: FriendlyHomeScreen.leafDark,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                minimumSize: const Size(0, 40),
+                shape: const StadiumBorder(),
+              ),
+              onPressed: () => _showReleaseSummary(context),
+              child: const Text('TL;DR', style: TextStyle(fontWeight: FontWeight.w900)),
+            ),
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -765,6 +781,76 @@ class _LeafPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+void _showReleaseSummary(BuildContext context) {
+  HapticFeedback.selectionClick();
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Offline update TL;DR',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Latest pushed version for the iPhone web/offline preview.',
+              style: TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 16),
+            const _ReleaseBullet('Home screen card spacing tightened for iPhone.'),
+            const _ReleaseBullet('Today’s actions no longer overlap inside the card.'),
+            const _ReleaseBullet('Bottom navigation is framed and easier to tap.'),
+            const _ReleaseBullet('iPhone web app metadata and safe-area support were added.'),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+class _ReleaseBullet extends StatelessWidget {
+  const _ReleaseBullet(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Icon(Icons.check_circle, color: FriendlyHomeScreen.leaf, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: FriendlyHomeScreen.ink, fontWeight: FontWeight.w800, height: 1.35),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 void _openCrop(BuildContext context, Crop crop) {

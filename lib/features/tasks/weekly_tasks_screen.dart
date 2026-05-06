@@ -54,6 +54,24 @@ class _WeeklyTasksScreenState extends State<WeeklyTasksScreen> {
     _reloadTasks();
   }
 
+  void _openTaskDetails(TaskRule task, bool completed) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return _TaskDetailSheet(
+          task: task,
+          completed: completed,
+          onCompletedChanged: (value) async {
+            Navigator.pop(context);
+            await _setTaskCompleted(task, value);
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,7 +109,7 @@ class _WeeklyTasksScreenState extends State<WeeklyTasksScreen> {
               .length;
 
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
             itemCount: tasks.length + 1,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
@@ -112,6 +130,7 @@ class _WeeklyTasksScreenState extends State<WeeklyTasksScreen> {
                 task: task,
                 completed: completed,
                 onCompletedChanged: (value) => _setTaskCompleted(task, value),
+                onOpenDetails: () => _openTaskDetails(task, completed),
               );
             },
           );
@@ -165,7 +184,12 @@ class _TaskProgressCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text('$completedCount of $totalCount tasks completed'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
+            const Text(
+              'Tap a task for quick steps before marking it done.',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
             LinearProgressIndicator(value: progress),
             const SizedBox(height: 12),
             Wrap(
@@ -194,11 +218,13 @@ class _TaskCard extends StatelessWidget {
     required this.task,
     required this.completed,
     required this.onCompletedChanged,
+    required this.onOpenDetails,
   });
 
   final TaskRule task;
   final bool completed;
   final ValueChanged<bool> onCompletedChanged;
+  final VoidCallback onOpenDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +233,7 @@ class _TaskCard extends StatelessWidget {
 
     return Card(
       child: InkWell(
-        onTap: () => onCompletedChanged(!completed),
+        onTap: onOpenDetails,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -238,6 +264,8 @@ class _TaskCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       task.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: textColor),
                     ),
                     const SizedBox(height: 12),
@@ -263,31 +291,145 @@ class _TaskCard extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.primary),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  IconData _iconForTaskType(String taskType) {
-    return switch (taskType) {
-      'water' => Icons.water_drop_outlined,
-      'check_pests' => Icons.bug_report_outlined,
-      'protect' => Icons.health_and_safety_outlined,
-      'support' => Icons.signpost_outlined,
-      'mulch' => Icons.grass_outlined,
-      'prepare_bed' => Icons.yard_outlined,
-      'succession' => Icons.repeat_outlined,
-      _ => Icons.check_circle_outline,
-    };
+class _TaskDetailSheet extends StatelessWidget {
+  const _TaskDetailSheet({
+    required this.task,
+    required this.completed,
+    required this.onCompletedChanged,
+  });
+
+  final TaskRule task;
+  final bool completed;
+  final ValueChanged<bool> onCompletedChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = _stepsForTaskType(task.taskType);
+
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          MediaQuery.paddingOf(context).bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 26,
+                  child: Icon(_iconForTaskType(task.taskType)),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.title,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _formatValue(task.taskType),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Text(
+              task.description,
+              style: const TextStyle(height: 1.45, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(
+                  avatar: const Icon(Icons.flag_outlined, size: 18),
+                  label: Text('Priority ${task.priority}'),
+                ),
+                if (task.taskType == 'succession') const _SuccessionBadge(),
+                if (completed)
+                  const Chip(
+                    avatar: Icon(Icons.check_circle_outline, size: 18),
+                    label: Text('Marked done'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            Text(
+              'Quick steps',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            ...steps.map(_TaskStep.new),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => onCompletedChanged(!completed),
+                icon: Icon(completed ? Icons.undo_outlined : Icons.check_circle_outline),
+                label: Text(completed ? 'Mark as not done' : 'Mark as done'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
+}
 
-  String _formatValue(String value) {
-    return value
-        .split('_')
-        .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
-        .join(' ');
+class _TaskStep extends StatelessWidget {
+  const _TaskStep(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle_outline, size: 20, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(height: 1.35, fontWeight: FontWeight.w650),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -356,4 +498,69 @@ class _WeeklyTasksData {
   final List<TaskRule> tasks;
   final Set<String> completedTaskIds;
   final String weekKey;
+}
+
+IconData _iconForTaskType(String taskType) {
+  return switch (taskType) {
+    'water' => Icons.water_drop_outlined,
+    'check_pests' => Icons.bug_report_outlined,
+    'protect' => Icons.health_and_safety_outlined,
+    'support' => Icons.signpost_outlined,
+    'mulch' => Icons.grass_outlined,
+    'prepare_bed' => Icons.yard_outlined,
+    'succession' => Icons.repeat_outlined,
+    _ => Icons.check_circle_outline,
+  };
+}
+
+String _formatValue(String value) {
+  return value
+      .split('_')
+      .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
+}
+
+List<String> _stepsForTaskType(String taskType) {
+  return switch (taskType) {
+    'water' => const [
+        'Check the top 2–3 cm of soil before watering.',
+        'Water slowly at the base of the plant, not over the leaves.',
+        'Skip watering if the soil is still cool and damp.',
+      ],
+    'check_pests' => const [
+        'Inspect leaf undersides and new growth first.',
+        'Remove obvious pests by hand where practical.',
+        'Check again in two days if damage is fresh.',
+      ],
+    'protect' => const [
+        'Check the overnight forecast before dusk.',
+        'Cover frost-tender crops or move pots under shelter.',
+        'Remove covers in the morning once temperatures lift.',
+      ],
+    'support' => const [
+        'Look for leaning stems or heavy growth.',
+        'Tie plants loosely so stems can still move.',
+        'Keep supports clear of roots when pushing stakes in.',
+      ],
+    'mulch' => const [
+        'Clear weeds before adding mulch.',
+        'Keep mulch a few centimetres away from stems.',
+        'Top up thin areas after rain or wind.',
+      ],
+    'prepare_bed' => const [
+        'Remove weeds and old crop debris.',
+        'Loosen the surface without disturbing soil too deeply.',
+        'Add compost before the next sowing window.',
+      ],
+    'succession' => const [
+        'Check whether you still have harvest space available.',
+        'Sow a small batch rather than a full bed.',
+        'Repeat only while the weather still suits this crop.',
+      ],
+    _ => const [
+        'Check the task conditions in your garden.',
+        'Do the smallest useful action first.',
+        'Mark it done when the garden is up to date.',
+      ],
+  };
 }

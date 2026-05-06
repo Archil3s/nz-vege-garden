@@ -32,99 +32,148 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Validate bundled offline data
-        run: python tools/validate_data.py
-
-      - name: Run static repository sanity checks
-        run: python tools/static_sanity_check.py
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - name: Show Flutter version
-        run: flutter --version
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Apply iPhone preview layout patch
-        run: python tools/iphone_preview_patch.py
-
-      - name: Analyze Flutter project without blocking preview
-        continue-on-error: true
-        run: flutter analyze
-
-      - name: Run Flutter tests without blocking preview
-        continue-on-error: true
-        run: flutter test
-
-      - name: Build web preview or detailed fallback
+      - name: Run checks and build with diagnostics
         run: |
           set +e
-          flutter build web --release --base-href /nz-vege-garden/ > flutter-build.log 2>&1
-          status=$?
-          set -e
-          python <<'PY'
-          from pathlib import Path
-          import os
 
-          log_path = Path('flutter-build.log')
-          text = log_path.read_text(errors='replace') if log_path.exists() else 'No Flutter build log was captured.'
-          lines = text.splitlines()
-          hits = []
-          for line in lines:
-              low = line.lower()
-              if 'error' in low or 'failed' in low or 'exception' in low or 'undefined' in low or 'not found' in low:
-                  hits.append(line)
-          if not hits:
-              hits = lines[-80:]
-          Path('flutter-build-summary.md').write_text(
-              '# Flutter preview build summary\n\n'
-              f"Revision: `{os.environ.get('GITHUB_SHA', '')[:7]}`\n\n"
-              f"Branch: `{os.environ.get('GITHUB_REF_NAME', 'main')}`\n\n"
-              '## Likely failing lines\n\n```text\n'
-              + '\n'.join(hits[-100:])
-              + '\n```\n\n## Recent build log\n\n```text\n'
-              + '\n'.join(lines[-160:])
-              + '\n```\n'
-          )
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write(Path('flutter-build-summary.md').read_text())
-          PY
-          if [ "$status" -ne 0 ]; then
-            mkdir -p build/web
-            python <<'PY'
+          run_step() {
+            local name="$1"
+            shift
+            local log="diagnostics/${name}.log"
+            echo "Running ${name}..."
+            echo "$*" > "${log}"
+            "$@" >> "${log}" 2>&1
+            local status=$?
+            echo "${status}" > "diagnostics/${name}.status"
+            if [ "${status}" -ne 0 ]; then
+              echo "${name} failed with exit code ${status}."
+            else
+              echo "${name} passed."
+            fi
+          }
+
+          mkdir -p diagnostics
+          run_step validate-data python tools/validate_data.py
+          run_step static-sanity python tools/static_sanity_check.py
+          run_step flutter-version flutter --version
+          run_step pub-get flutter pub get
+          run_step iphone-preview-patch python tools/iphone_preview_patch.py
+          run_step flutter-analyze flutter analyze
+          run_step flutter-test flutter test
+          run_step flutter-build flutter build web --release --base-href /nz-vege-garden/
+
+          python <<'PY'
           from html import escape
           from pathlib import Path
           import os
-          summary = Path('flutter-build-summary.md').read_text(errors='replace')
-          text = Path('flutter-build.log').read_text(errors='replace')
-          lines = text.splitlines()
-          hits = []
-          for line in lines:
-              low = line.lower()
-              if 'error' in low or 'failed' in low or 'exception' in low or 'undefined' in low or 'not found' in low:
-                  hits.append(line)
-          if not hits:
-              hits = lines[-80:]
-          error = escape('\n'.join(hits[-80:]))
-          recent = escape('\n'.join(lines[-140:]))
-          sha = escape(os.environ.get('GITHUB_SHA', '')[:7])
-          branch = escape(os.environ.get('GITHUB_REF_NAME', 'main'))
-          Path('build/web/index.html').write_text(f'''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>NZ Veg Garden build error</title><style>body{{margin:0;background:#f8f3e8;color:#172d22;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}}main{{max-width:760px;margin:0 auto;padding:48px 20px}}.card{{border-radius:32px;overflow:hidden;background:#fffdf7;border:1px solid #e7dfce;box-shadow:0 22px 52px rgba(23,45,34,.16)}}.hero{{padding:28px 24px;color:white;background:linear-gradient(135deg,#17452f,#2f724b,#8ba766)}}h1{{font-size:52px;line-height:.95;margin:18px 0 10px;letter-spacing:-.05em}}.body{{padding:22px}}.pill{{display:inline-block;padding:9px 14px;border-radius:999px;background:#fbefe6;color:#c4793d;font-weight:900}}.row{{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e7dfce;padding:13px 0;font-size:20px;font-weight:900}}.row span:first-child{{color:#66736a}}pre{{white-space:pre-wrap;overflow:auto;max-height:38vh;background:#111a14;color:#e8f5e9;border-radius:18px;padding:14px;font-size:12px;line-height:1.4}}p{{color:#66736a;font-size:18px;font-weight:750;line-height:1.4}}</style></head><body><main><section class="card"><div class="hero"><strong>NZ Veg Garden · dev preview</strong><h1>Build error outlined</h1><p style="color:white;margin:0">GitHub Pages received the push, but Flutter failed to compile.</p></div><div class="body"><span class="pill">Build needs fix</span><div class="row"><span>Revision</span><span>{sha}</span></div><div class="row"><span>Branch</span><span>{branch}</span></div><div class="row"><span>Workflow</span><span>iPhone Web Preview</span></div><h2>Likely failing lines</h2><pre>{error}</pre><h2>Recent build log</h2><pre>{recent}</pre><p>This fallback page is intentional. It now prints the captured Flutter build error directly on iPhone and also uploads the full log as a workflow artifact.</p></div></section></main></body></html>''')
+
+          diagnostics = Path('diagnostics')
+          names = [
+              'validate-data',
+              'static-sanity',
+              'flutter-version',
+              'pub-get',
+              'iphone-preview-patch',
+              'flutter-analyze',
+              'flutter-test',
+              'flutter-build',
+          ]
+          tokens = ['error', 'failed', 'exception', 'undefined', 'not found', "isn't defined", 'could not', 'no such file', 'fatal']
+
+          sections = []
+          failures = []
+          for name in names:
+              log_path = diagnostics / f'{name}.log'
+              status_path = diagnostics / f'{name}.status'
+              log = log_path.read_text(errors='replace') if log_path.exists() else 'No log captured.'
+              status = status_path.read_text(errors='replace').strip() if status_path.exists() else 'unknown'
+              lines = log.splitlines()
+              hits = [line for line in lines if any(token in line.lower() for token in tokens)]
+              if status not in {'0', 'unknown'}:
+                  failures.append(name)
+              if not hits:
+                  hits = lines[-40:]
+              sections.append((name, status, hits[-80:], lines[-120:]))
+
+          summary_lines = [
+              '# Flutter preview diagnostics',
+              '',
+              f"Revision: `{os.environ.get('GITHUB_SHA', '')[:7]}`",
+              f"Branch: `{os.environ.get('GITHUB_REF_NAME', 'main')}`",
+              '',
+              '## Overall result',
+              '',
+              'Failed steps: ' + (', '.join(failures) if failures else 'None'),
+              '',
+          ]
+
+          for name, status, hits, recent in sections:
+              summary_lines.extend([
+                  f'## {name}',
+                  '',
+                  f'Exit code: `{status}`',
+                  '',
+                  '### Likely failing lines',
+                  '',
+                  '```text',
+                  '\n'.join(hits),
+                  '```',
+                  '',
+              ])
+
+          summary = '\n'.join(summary_lines)
+          Path('flutter-build-summary.md').write_text(summary)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write(summary)
+
+          build_status = (diagnostics / 'flutter-build.status').read_text(errors='replace').strip() if (diagnostics / 'flutter-build.status').exists() else '1'
+          any_failure = bool(failures)
+          if build_status != '0' or any_failure:
+              build_web = Path('build/web')
+              build_web.mkdir(parents=True, exist_ok=True)
+              failing_block = []
+              for name, status, hits, recent in sections:
+                  if status != '0':
+                      failing_block.append(f'{name} exit {status}')
+                      failing_block.extend(hits[-30:])
+                      failing_block.append('')
+              if not failing_block:
+                  failing_block = ['No failing lines detected. Check uploaded diagnostics.']
+              recent_block = []
+              for name, status, hits, recent in sections:
+                  if status != '0':
+                      recent_block.append(f'--- {name} recent log ---')
+                      recent_block.extend(recent[-80:])
+                      recent_block.append('')
+              if not recent_block:
+                  recent_block = ['No failing recent log detected.']
+              sha = escape(os.environ.get('GITHUB_SHA', '')[:7])
+              branch = escape(os.environ.get('GITHUB_REF_NAME', 'main'))
+              failed = escape(', '.join(failures) if failures else 'None')
+              error = escape('\n'.join(failing_block[-160:]))
+              recent = escape('\n'.join(recent_block[-220:]))
+              Path('build/web/index.html').write_text(f'''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>NZ Veg Garden build diagnostics</title><style>body{{margin:0;background:#f8f3e8;color:#172d22;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}}main{{max-width:760px;margin:0 auto;padding:48px 20px}}.card{{border-radius:32px;overflow:hidden;background:#fffdf7;border:1px solid #e7dfce;box-shadow:0 22px 52px rgba(23,45,34,.16)}}.hero{{padding:28px 24px;color:white;background:linear-gradient(135deg,#17452f,#2f724b,#8ba766)}}h1{{font-size:52px;line-height:.95;margin:18px 0 10px;letter-spacing:-.05em}}.body{{padding:22px}}.pill{{display:inline-block;padding:9px 14px;border-radius:999px;background:#fbefe6;color:#c4793d;font-weight:900}}.row{{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e7dfce;padding:13px 0;font-size:20px;font-weight:900}}.row span:first-child{{color:#66736a}}pre{{white-space:pre-wrap;overflow:auto;max-height:38vh;background:#111a14;color:#e8f5e9;border-radius:18px;padding:14px;font-size:12px;line-height:1.4}}p{{color:#66736a;font-size:18px;font-weight:750;line-height:1.4}}</style></head><body><main><section class="card"><div class="hero"><strong>NZ Veg Garden · dev preview</strong><h1>Build diagnostics</h1><p style="color:white;margin:0">The iPhone preview now shows failing lines from every CI step.</p></div><div class="body"><span class="pill">Needs review</span><div class="row"><span>Revision</span><span>{sha}</span></div><div class="row"><span>Branch</span><span>{branch}</span></div><div class="row"><span>Failed steps</span><span>{failed}</span></div><h2>Likely failing lines</h2><pre>{error}</pre><h2>Recent failing logs</h2><pre>{recent}</pre><p>This page is intentional. It prints failing lines from data validation, static checks, dependency install, analyze, tests, and web build.</p></div></section></main></body></html>''')
           PY
+
+          build_status=$(cat diagnostics/flutter-build.status 2>/dev/null || echo 1)
+          if [ "${build_status}" -ne 0 ]; then
+            exit 0
           fi
 
-      - name: Upload Flutter build logs
+      - name: Upload Flutter diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: flutter-build-diagnostics
           path: |
-            flutter-build.log
+            diagnostics/*.log
+            diagnostics/*.status
             flutter-build-summary.md
           if-no-files-found: ignore
 

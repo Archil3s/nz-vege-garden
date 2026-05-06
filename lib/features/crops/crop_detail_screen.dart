@@ -29,7 +29,7 @@ class CropDetailScreen extends StatelessWidget {
 
   final Crop crop;
 
-  Future<_CropDetailData> _loadDetailData() async {
+  Future<_CropDetailData> _loadData() async {
     const dataRepository = GardenDataRepository();
     const settingsRepository = AppSettingsRepository();
 
@@ -64,37 +64,14 @@ class CropDetailScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
       ),
       body: FutureBuilder<_CropDetailData>(
-        future: _loadDetailData(),
+        future: _loadData(),
         builder: (context, snapshot) {
-          final data = snapshot.data;
-
           if (snapshot.connectionState != ConnectionState.done &&
-              data == null) {
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _CropHeroCard(
-                  crop: crop,
-                  data: null,
-                ),
-                const SizedBox(height: 14),
-                _InfoPanel(
-                  title: 'Could not load full crop profile',
-                  subtitle:
-                      'The core crop data is available, but linked planting or pest data did not load.',
-                  icon: Icons.warning_amber_outlined,
-                  color: _clay,
-                  children: [
-                    Text('${snapshot.error}'),
-                  ],
-                ),
-              ],
-            );
-          }
+          final data = snapshot.data;
 
           return Stack(
             children: [
@@ -118,36 +95,48 @@ class CropDetailScreen extends StatelessWidget {
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 112),
                 children: [
-                  _CropHeroCard(
-                    crop: crop,
-                    data: data,
-                  ),
+                  _CropHeroCard(crop: crop, data: data),
                   const SizedBox(height: 14),
                   _QuickStatsGrid(crop: crop),
                   const SizedBox(height: 14),
-                  _DecisionCard(
-                    crop: crop,
-                    data: data,
+                  _DecisionCard(crop: crop, data: data),
+                  const SizedBox(height: 14),
+                  _PlantingWindowsCard(crop: crop, data: data),
+                  const SizedBox(height: 14),
+                  _InfoPanel(
+                    title: 'How to grow it well',
+                    subtitle:
+                        'Practical advice for stronger plants and better harvests.',
+                    icon: Icons.eco_outlined,
+                    color: _leaf,
+                    children: [
+                      _Checklist(items: _howToGrowSteps(crop)),
+                    ],
                   ),
                   const SizedBox(height: 14),
-                  _PlantingWindowsCard(
-                    crop: crop,
-                    data: data,
+                  _InfoPanel(
+                    title: 'This week’s checklist',
+                    subtitle:
+                        'Use this when checking, watering, or planning this crop.',
+                    icon: Icons.checklist_outlined,
+                    color: _moss,
+                    children: [
+                      _Checklist(items: _weeklyChecklist(crop, data?.settings)),
+                    ],
                   ),
                   const SizedBox(height: 14),
-                  _HowToGrowCard(crop: crop),
-                  const SizedBox(height: 14),
-                  _WeeklyChecklistCard(
-                    crop: crop,
-                    data: data,
+                  _InfoPanel(
+                    title: 'Common mistakes',
+                    subtitle:
+                        'Avoid these to reduce weak growth and poor harvests.',
+                    icon: Icons.warning_amber_outlined,
+                    color: _clay,
+                    children: [
+                      _Checklist(items: _commonMistakes(crop)),
+                    ],
                   ),
                   const SizedBox(height: 14),
-                  _CommonMistakesCard(crop: crop),
-                  const SizedBox(height: 14),
-                  _PestAndProblemsCard(
-                    crop: crop,
-                    data: data,
-                  ),
+                  _PestsPanel(crop: crop, data: data),
                 ],
               ),
             ],
@@ -170,7 +159,7 @@ class _CropHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final verdict = _verdictForCrop(crop, data?.settings);
-    final regionLabel = data == null
+    final region = data == null
         ? 'Offline profile'
         : _formatValue(data!.settings.regionId);
 
@@ -194,19 +183,18 @@ class _CropHeroCard extends StatelessWidget {
       child: Stack(
         children: [
           Positioned(
-            right: -26,
-            bottom: -36,
+            right: -24,
+            bottom: -34,
             child: Icon(
               _iconForCrop(crop),
+              size: 150,
               color: Colors.white.withValues(alpha: .12),
-              size: 160,
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _GlassPill(
-                  label: '${_formatValue(crop.category)} · $regionLabel'),
+              _GlassPill(label: '${_formatValue(crop.category)} · $region'),
               const SizedBox(height: 20),
               Text(
                 crop.commonName,
@@ -278,29 +266,13 @@ class _QuickStatsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final stats = [
       _StatData(
-        icon: Icons.straighten_outlined,
-        label: 'Spacing',
-        value: '${crop.spacingCm} cm',
-        color: _leaf,
-      ),
-      _StatData(
-        icon: Icons.timer_outlined,
-        label: 'Harvest',
-        value: '${crop.daysToHarvestMin}-${crop.daysToHarvestMax} days',
-        color: _clay,
-      ),
-      _StatData(
-        icon: Icons.wb_sunny_outlined,
-        label: 'Light',
-        value: _formatValue(crop.sunRequirement),
-        color: _sun,
-      ),
-      _StatData(
-        icon: Icons.water_drop_outlined,
-        label: 'Water',
-        value: _formatValue(crop.waterRequirement),
-        color: _moss,
-      ),
+          Icons.straighten_outlined, 'Spacing', '${crop.spacingCm} cm', _leaf),
+      _StatData(Icons.timer_outlined, 'Harvest',
+          '${crop.daysToHarvestMin}-${crop.daysToHarvestMax} days', _clay),
+      _StatData(Icons.wb_sunny_outlined, 'Light',
+          _formatValue(crop.sunRequirement), _sun),
+      _StatData(Icons.water_drop_outlined, 'Water',
+          _formatValue(crop.waterRequirement), _moss),
     ];
 
     return GridView.builder(
@@ -313,9 +285,7 @@ class _QuickStatsGrid extends StatelessWidget {
         crossAxisSpacing: 10,
         childAspectRatio: 1.55,
       ),
-      itemBuilder: (context, index) {
-        return _StatCard(data: stats[index]);
-      },
+      itemBuilder: (context, index) => _StatCard(data: stats[index]),
     );
   }
 }
@@ -343,15 +313,7 @@ class _StatCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: data.color.withValues(alpha: .14),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(data.icon, color: data.color),
-          ),
+          _IconBubble(icon: data.icon, color: data.color, size: 42),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
@@ -399,8 +361,7 @@ class _DecisionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = data?.settings;
-    final verdict = _verdictForCrop(crop, settings);
+    final verdict = _verdictForCrop(crop, data?.settings);
 
     return _InfoPanel(
       title: 'Should I grow this?',
@@ -413,17 +374,16 @@ class _DecisionCard extends StatelessWidget {
           runSpacing: 8,
           children: [
             if (crop.beginnerFriendly)
-              const _Tag(label: 'Good for beginners', color: _leaf),
+              const _Tag(label: 'Beginner friendly', color: _leaf),
             if (crop.containerFriendly)
               const _Tag(label: 'Container friendly', color: _moss),
             if (crop.frostTender)
               const _Tag(label: 'Needs frost protection', color: _clay)
             else
-              const _Tag(label: 'Handles cool conditions', color: _leafDark),
-            if (settings?.gardenType == 'container' && !crop.containerFriendly)
-              const _Tag(label: 'Not ideal for containers', color: _berry),
-            if (settings?.frostRisk == 'high' && crop.frostTender)
-              const _Tag(label: 'Risky in frost areas', color: _berry),
+              const _Tag(label: 'Cool tolerant', color: _leafDark),
+            if (data?.settings.gardenType == 'container' &&
+                !crop.containerFriendly)
+              const _Tag(label: 'Better in a bed', color: _berry),
           ],
         ),
       ],
@@ -452,7 +412,7 @@ class _PlantingWindowsCard extends StatelessWidget {
         color: _clay,
         children: const [
           Text(
-            'This crop is in the offline crop database, but it does not yet have a region-specific planting rule. Add a planting rule to make it appear in the calendar and Garden Coach.',
+            'This crop is in the offline crop database, but it does not yet have a region-specific planting rule. Add one later to make it appear in the calendar and Garden Coach.',
             style: TextStyle(
               color: _muted,
               fontWeight: FontWeight.w600,
@@ -465,13 +425,11 @@ class _PlantingWindowsCard extends StatelessWidget {
 
     return _InfoPanel(
       title: 'When to sow, plant, or transplant',
-      subtitle: 'Windows use your saved region and the offline planting rules.',
+      subtitle: 'Uses your saved region and offline planting rules.',
       icon: Icons.calendar_month_outlined,
       color: _leaf,
       children: [
-        ...rules.map(
-          (rule) => _PlantingWindowRow(rule: rule),
-        ),
+        ...rules.map((rule) => _PlantingWindowRow(rule: rule)),
       ],
     );
   }
@@ -530,71 +488,8 @@ class _PlantingWindowRow extends StatelessWidget {
   }
 }
 
-class _HowToGrowCard extends StatelessWidget {
-  const _HowToGrowCard({required this.crop});
-
-  final Crop crop;
-
-  @override
-  Widget build(BuildContext context) {
-    return _InfoPanel(
-      title: 'How to grow it well',
-      subtitle: 'Practical growing advice based on this crop profile.',
-      icon: Icons.eco_outlined,
-      color: _leaf,
-      children: [
-        _Checklist(items: _howToGrowSteps(crop)),
-      ],
-    );
-  }
-}
-
-class _WeeklyChecklistCard extends StatelessWidget {
-  const _WeeklyChecklistCard({
-    required this.crop,
-    required this.data,
-  });
-
-  final Crop crop;
-  final _CropDetailData? data;
-
-  @override
-  Widget build(BuildContext context) {
-    return _InfoPanel(
-      title: 'This week’s checklist',
-      subtitle:
-          'Use this after sowing, planting, or checking an existing crop.',
-      icon: Icons.checklist_outlined,
-      color: _moss,
-      children: [
-        _Checklist(items: _weeklyChecklist(crop, data?.settings)),
-      ],
-    );
-  }
-}
-
-class _CommonMistakesCard extends StatelessWidget {
-  const _CommonMistakesCard({required this.crop});
-
-  final Crop crop;
-
-  @override
-  Widget build(BuildContext context) {
-    return _InfoPanel(
-      title: 'Common mistakes to avoid',
-      subtitle:
-          'The small things that usually cause weak plants or poor harvests.',
-      icon: Icons.warning_amber_outlined,
-      color: _clay,
-      children: [
-        _Checklist(items: _commonMistakes(crop)),
-      ],
-    );
-  }
-}
-
-class _PestAndProblemsCard extends StatelessWidget {
-  const _PestAndProblemsCard({
+class _PestsPanel extends StatelessWidget {
+  const _PestsPanel({
     required this.crop,
     required this.data,
   });
@@ -609,12 +504,12 @@ class _PestAndProblemsCard extends StatelessWidget {
     if (problems.isEmpty) {
       return _InfoPanel(
         title: 'Likely pests and problems',
-        subtitle: 'No linked pest or problem entries yet.',
+        subtitle: 'No linked pest/problem entries yet.',
         icon: Icons.bug_report_outlined,
         color: _berry,
         children: const [
           Text(
-            'This will improve as the offline pest database expands. For now, check leaves, stems, soil moisture, and new growth regularly.',
+            'Check leaves, stems, soil moisture, new growth, and the underside of leaves weekly.',
             style: TextStyle(
               color: _muted,
               height: 1.35,
@@ -631,16 +526,14 @@ class _PestAndProblemsCard extends StatelessWidget {
       icon: Icons.bug_report_outlined,
       color: _berry,
       children: [
-        ...problems.map(
-          (problem) => _ProblemCard(problem: problem),
-        ),
+        ...problems.map((problem) => _ProblemTile(problem: problem)),
       ],
     );
   }
 }
 
-class _ProblemCard extends StatelessWidget {
-  const _ProblemCard({required this.problem});
+class _ProblemTile extends StatelessWidget {
+  const _ProblemTile({required this.problem});
 
   final PestProblem problem;
 
@@ -670,7 +563,7 @@ class _ProblemCard extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         _MiniList(title: 'Signs', items: problem.signs),
         _MiniList(title: 'What to do', items: problem.actions),
         _MiniList(title: 'Prevention', items: problem.prevention),
@@ -724,66 +617,41 @@ class _InfoPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _PanelHeader(
-            title: title,
-            subtitle: subtitle,
-            icon: icon,
-            color: color,
+          Row(
+            children: [
+              _IconBubble(icon: icon, color: color, size: 46),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _ink,
+                        fontSize: 20,
+                        height: 1.05,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: _muted,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           ...children,
         ],
       ),
-    );
-  }
-}
-
-class _PanelHeader extends StatelessWidget {
-  const _PanelHeader({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _IconBubble(icon: icon, color: color, size: 46),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: _ink,
-                  fontSize: 20,
-                  height: 1.05,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -.2,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: _muted,
-                  height: 1.3,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
@@ -864,7 +732,9 @@ class _MiniList extends StatelessWidget {
                       const Text(
                         '• ',
                         style: TextStyle(
-                            color: _leaf, fontWeight: FontWeight.w900),
+                          color: _leaf,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                       Expanded(
                         child: Text(
@@ -998,12 +868,7 @@ class _CropDetailData {
 }
 
 class _StatData {
-  const _StatData({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+  const _StatData(this.icon, this.label, this.value, this.color);
 
   final IconData icon;
   final String label;
@@ -1062,7 +927,7 @@ _Verdict _verdictForCrop(Crop crop, AppSettings? settings) {
     return const _Verdict(
       title: 'Strong home-garden pick',
       reason:
-          'This crop is beginner-friendly and can work in containers or smaller spaces.',
+          'Beginner-friendly and suitable for containers or smaller spaces.',
       icon: Icons.thumb_up_alt_outlined,
       color: _leaf,
     );
@@ -1081,7 +946,7 @@ _Verdict _verdictForCrop(Crop crop, AppSettings? settings) {
   return const _Verdict(
     title: 'Worth growing with care',
     reason:
-        'This crop can be useful, but it needs more attention to timing, water, spacing, or protection.',
+        'Useful crop, but pay attention to timing, water, spacing, or protection.',
     icon: Icons.eco_outlined,
     color: _moss,
   );
@@ -1092,7 +957,7 @@ List<String> _howToGrowSteps(Crop crop) {
     crop.sunRequirement == 'full_sun'
         ? 'Choose a sunny position with good airflow.'
         : 'Use sun or part shade, especially during hotter months.',
-    'Allow about ${crop.spacingCm} cm between plants so roots and leaves have room.',
+    'Allow about ${crop.spacingCm} cm between plants.',
   ];
 
   if (crop.waterRequirement == 'regular') {
@@ -1115,11 +980,11 @@ List<String> _howToGrowSteps(Crop crop) {
         'Avoid frost. Start under cover or wait until nights are reliably warm.');
   } else {
     steps.add(
-        'This crop can handle cooler conditions better than tender summer crops.');
+        'This crop handles cooler conditions better than tender summer crops.');
   }
 
   steps.add(
-      'Expect harvest around ${crop.daysToHarvestMin}-${crop.daysToHarvestMax} days, depending on weather and growth.');
+      'Expect harvest around ${crop.daysToHarvestMin}-${crop.daysToHarvestMax} days.');
 
   return steps;
 }

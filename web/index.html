@@ -43,7 +43,8 @@
 
     .preview-button,
     .preview-chip,
-    .preview-sheet {
+    .preview-sheet,
+    .swipe-hint {
       pointer-events: auto;
     }
 
@@ -87,6 +88,28 @@
       box-shadow: 0 10px 24px rgba(23, 45, 34, .16);
       font: 900 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       white-space: nowrap;
+    }
+
+    .swipe-hint {
+      position: fixed;
+      right: 12px;
+      top: 47vh;
+      transform: translateY(-50%);
+      max-width: 116px;
+      padding: 10px 11px;
+      border: 1px solid rgba(255, 255, 255, .34);
+      border-radius: 999px;
+      background: rgba(23, 69, 47, .92);
+      color: white;
+      box-shadow: 0 14px 30px rgba(23, 45, 34, .24);
+      font: 900 12px/1.15 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      text-align: center;
+      transition: opacity .2s ease;
+    }
+
+    .swipe-hint.is-hidden {
+      opacity: 0;
+      pointer-events: none;
     }
 
     .preview-sheet {
@@ -158,15 +181,16 @@
           <button class="preview-button secondary" type="button" data-sheet="install">Install</button>
           <button class="preview-button" type="button" data-sheet="release">TL;DR</button>
         </div>
-        <div class="preview-chip">iPhone preview · weekly task details</div>
+        <button class="swipe-hint" type="button" aria-label="Swipe left for next card">Swipe left<br>for next</button>
+        <div class="preview-chip">iPhone preview · swipe left for next card</div>
         <section id="release-sheet" class="preview-sheet" aria-hidden="true" role="dialog" aria-label="Offline update summary">
           <h2>Offline update TL;DR</h2>
           <p>Latest pushed version for the iPhone web/offline preview.</p>
           <ul>
-            <li>Weekly tasks now open quick detail sheets.</li>
-            <li>Each task shows practical steps before marking done.</li>
-            <li>Task cards now use chevrons and shorter previews.</li>
-            <li>Current visible check: iPhone preview · weekly task details.</li>
+            <li>Home uses horizontal cards, not vertical scroll.</li>
+            <li>Swipe left on the main garden card to reach Sow, Pruning, Tools, and Best Pick.</li>
+            <li>Weekly tasks now open quick detail sheets with practical steps.</li>
+            <li>Current visible check: iPhone preview · swipe left for next card.</li>
           </ul>
           <button class="preview-close" type="button">Close</button>
         </section>
@@ -188,6 +212,7 @@
         release: root.querySelector('#release-sheet'),
         install: root.querySelector('#install-sheet'),
       };
+      const swipeHint = root.querySelector('.swipe-hint');
 
       function setSheet(name) {
         Object.entries(sheets).forEach(([key, sheet]) => {
@@ -210,6 +235,12 @@
       root.querySelectorAll('.preview-close').forEach((button) => {
         button.addEventListener('click', closeSheets);
       });
+
+      swipeHint.addEventListener('click', () => {
+        setSheet('release');
+      });
+
+      setTimeout(() => swipeHint.classList.add('is-hidden'), 9000);
     });
   </script>
   <script src="flutter_bootstrap.js" async></script>

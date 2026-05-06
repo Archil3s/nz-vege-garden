@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../data/app_settings_repository.dart';
 import '../features/calendar/crop_calendar_screen.dart';
 import '../features/crops/crop_guide_screen.dart';
 import '../features/harvest/harvest_tracker_screen.dart';
 import '../features/home/friendly_home_screen.dart';
-import '../features/insights/insights_screen.dart';
 import '../features/journal/garden_journal_screen.dart';
 import '../features/pests/pest_guide_screen.dart';
 import '../features/pruning/pruning_guide_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/setup/setup_screen.dart';
+import '../features/smart_weekly_planner/smart_weekly_planner_screen.dart';
 import '../features/tasks/weekly_tasks_screen.dart';
 import '../features/water/watering_planner_screen.dart';
 import 'app_theme.dart';
@@ -22,8 +24,67 @@ class NzVegeGardenApp extends StatelessWidget {
     return MaterialApp(
       title: 'NZ Vege Garden',
       theme: buildAppTheme(),
-      home: const AppShell(),
+      home: const _AppBootstrap(),
       debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class _AppBootstrap extends StatefulWidget {
+  const _AppBootstrap();
+
+  @override
+  State<_AppBootstrap> createState() => _AppBootstrapState();
+}
+
+class _AppBootstrapState extends State<_AppBootstrap> {
+  final _settingsRepository = const AppSettingsRepository();
+  late Future<bool> _hasCompletedSetupFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasCompletedSetupFuture = _loadSetupState();
+  }
+
+  Future<bool> _loadSetupState() async {
+    final settings = await _settingsRepository.loadSettings();
+    return settings.hasCompletedSetup;
+  }
+
+  void _reloadAfterSetup() {
+    setState(() => _hasCompletedSetupFuture = _loadSetupState());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _hasCompletedSetupFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('Could not load app setup: ${snapshot.error}'),
+              ),
+            ),
+          );
+        }
+
+        final hasCompletedSetup = snapshot.data ?? false;
+        if (!hasCompletedSetup) {
+          return SetupScreen(onComplete: _reloadAfterSetup);
+        }
+
+        return const AppShell();
+      },
     );
   }
 }
@@ -39,8 +100,8 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
 
   List<Widget> get _screens => [
+        const SmartWeeklyPlannerScreen(),
         const FriendlyHomeScreen(),
-        const InsightsScreen(),
         _MoreScreen(onOpenSection: _openSection),
       ];
 
@@ -96,14 +157,14 @@ class _AppShellState extends State<AppShell> {
               },
               destinations: const [
                 NavigationDestination(
+                  icon: Icon(Icons.event_note_outlined),
+                  selectedIcon: Icon(Icons.event_note),
+                  label: 'Planner',
+                ),
+                NavigationDestination(
                   icon: Icon(Icons.home_outlined),
                   selectedIcon: Icon(Icons.home),
                   label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.insights_outlined),
-                  selectedIcon: Icon(Icons.insights),
-                  label: 'Insights',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.more_horiz_outlined),
@@ -143,6 +204,12 @@ class _MoreScreen extends StatelessWidget {
           _MoreSectionCard(
             title: 'Planning',
             children: [
+              _MoreSectionTile(
+                icon: Icons.event_note_outlined,
+                title: 'Smart weekly planner',
+                description: 'The default offline iPhone workflow for today, calendar, garden, and plants.',
+                onTap: () => onOpenSection(const SmartWeeklyPlannerScreen()),
+              ),
               _MoreSectionTile(
                 icon: Icons.water_drop_outlined,
                 title: 'Water & soil planner',

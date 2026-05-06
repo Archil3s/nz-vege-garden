@@ -75,13 +75,21 @@ class GardenDataRepository {
   Future<List<Crop>> cropsForMonthAndRegion({
     required int month,
     required String regionId,
+    String? method,
   }) async {
     final crops = await loadCrops();
     final rules = await loadPlantingRules();
 
+    final normalizedMethod = method?.trim().toLowerCase();
     final matchingCropIds = rules
         .where((rule) => rule.appliesToMonth(month))
         .where((rule) => rule.appliesToRegion(regionId))
+        .where(
+          (rule) => normalizedMethod == null ||
+              normalizedMethod.isEmpty ||
+              normalizedMethod == 'both' ||
+              rule.method.toLowerCase() == normalizedMethod,
+        )
         .map((rule) => rule.cropId)
         .toSet();
 

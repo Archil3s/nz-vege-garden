@@ -71,6 +71,15 @@ Current build phase:
 MVP app features are being built with offline bundled data, local device storage, GitHub Pages visual preview, and lightweight validation tooling.
 ```
 
+Current MVP coverage:
+
+- First-run setup collects region, frost risk, wind exposure, and garden type.
+- Setup and settings are stored locally with `shared_preferences`.
+- The default app shell is planner-first for iPhone use.
+- Local JSON assets power crops, NZ regions, planting rules, pests, tasks, and succession rules.
+- Planting recommendations can be filtered by region, month, and planting method.
+- GitHub Pages preview is designed for iPhone visual checks and fallback diagnostics.
+
 Progress tracker:
 
 - [Project progress log](docs/progress_log.md)
@@ -103,7 +112,8 @@ The app currently has:
 
 - Flutter project scaffold
 - Material 3 app shell
-- Bottom navigation
+- Planner-first bottom navigation for iPhone
+- First-run setup flow
 - GitHub Pages Flutter web preview workflow
 - Local JSON crop, region, planting-rule, pest/problem, task-rule, and succession-rule data
 - Python data validation tooling

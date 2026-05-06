@@ -10,6 +10,7 @@ class AppSettingsRepository {
   static const _windExposureKey = 'settings.windExposure';
   static const _gardenTypeKey = 'settings.gardenType';
   static const _weeklyReminderEnabledKey = 'settings.weeklyReminderEnabled';
+  static const _hasCompletedSetupKey = 'settings.hasCompletedSetup';
 
   Future<AppSettings> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -22,6 +23,8 @@ class AppSettingsRepository {
       gardenType: prefs.getString(_gardenTypeKey) ?? defaults.gardenType,
       weeklyReminderEnabled:
           prefs.getBool(_weeklyReminderEnabledKey) ?? defaults.weeklyReminderEnabled,
+      hasCompletedSetup:
+          prefs.getBool(_hasCompletedSetupKey) ?? defaults.hasCompletedSetup,
     );
   }
 
@@ -33,6 +36,7 @@ class AppSettingsRepository {
     await prefs.setString(_windExposureKey, settings.windExposure);
     await prefs.setString(_gardenTypeKey, settings.gardenType);
     await prefs.setBool(_weeklyReminderEnabledKey, settings.weeklyReminderEnabled);
+    await prefs.setBool(_hasCompletedSetupKey, settings.hasCompletedSetup);
   }
 
   Future<void> updateRegion(String regionId) async {
@@ -58,5 +62,9 @@ class AppSettingsRepository {
   Future<void> updateWeeklyReminderEnabled(bool enabled) async {
     final current = await loadSettings();
     await saveSettings(current.copyWith(weeklyReminderEnabled: enabled));
+  }
+
+  Future<void> completeSetup(AppSettings settings) async {
+    await saveSettings(settings.copyWith(hasCompletedSetup: true));
   }
 }

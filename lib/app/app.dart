@@ -10,6 +10,7 @@ import '../features/journal/garden_journal_screen.dart';
 import '../features/pests/pest_guide_screen.dart';
 import '../features/pruning/pruning_guide_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/smart_weekly_planner/smart_weekly_planner_screen.dart';
 import '../features/tasks/weekly_tasks_screen.dart';
 import '../features/water/watering_planner_screen.dart';
 import 'app_theme.dart';
@@ -39,8 +40,8 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
 
   List<Widget> get _screens => [
+        const SmartWeeklyPlannerScreen(),
         const FriendlyHomeScreen(),
-        const InsightsScreen(),
         _MoreScreen(onOpenSection: _openSection),
       ];
 
@@ -96,14 +97,14 @@ class _AppShellState extends State<AppShell> {
               },
               destinations: const [
                 NavigationDestination(
+                  icon: Icon(Icons.event_note_outlined),
+                  selectedIcon: Icon(Icons.event_note),
+                  label: 'Planner',
+                ),
+                NavigationDestination(
                   icon: Icon(Icons.home_outlined),
                   selectedIcon: Icon(Icons.home),
                   label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.insights_outlined),
-                  selectedIcon: Icon(Icons.insights),
-                  label: 'Insights',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.more_horiz_outlined),
@@ -143,6 +144,12 @@ class _MoreScreen extends StatelessWidget {
           _MoreSectionCard(
             title: 'Planning',
             children: [
+              _MoreSectionTile(
+                icon: Icons.event_note_outlined,
+                title: 'Smart weekly planner',
+                description: 'The default offline iPhone workflow for today, calendar, garden, and plants.',
+                onTap: () => onOpenSection(const SmartWeeklyPlannerScreen()),
+              ),
               _MoreSectionTile(
                 icon: Icons.water_drop_outlined,
                 title: 'Water & soil planner',

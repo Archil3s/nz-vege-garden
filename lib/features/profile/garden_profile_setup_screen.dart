@@ -260,11 +260,7 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
       return a.commonName.compareTo(b.commonName);
     });
 
-    if (query.isEmpty) {
-      return filtered.take(32).toList(growable: false);
-    }
-
-    return filtered.take(80).toList(growable: false);
+    return filtered;
   }
 
   Set<String> _cropIdsForSeason(List<PlantingRule> rules, String seasonId) {
@@ -489,7 +485,7 @@ class _GardenProfileSetupScreenState extends State<GardenProfileSetupScreen> {
                 'gisborne': 'Gisborne',
                 'hawkes_bay': 'Hawkes Bay',
                 'taranaki': 'Taranaki',
-                'manawatu': 'Manawatū',
+                'manawatu': 'ManawatÅ«',
                 'wellington': 'Wellington',
                 'tasman': 'Tasman',
                 'nelson': 'Nelson',
@@ -734,7 +730,7 @@ class _PassportHero extends StatelessWidget {
     final subtitle = switch (step) {
       0 => 'Start with the basics. No pressure to be exact.',
       1 => '$goalCount goals selected. Pick only what matters.',
-      _ => '$growingCount growing · $wantCount want to grow.',
+      _ => '$growingCount growing Â· $wantCount want to grow.',
     };
 
     return Container(

@@ -33,7 +33,7 @@
       overflow: hidden;
     }
 
-    .release-overlay-root {
+    .preview-overlay-root {
       position: fixed;
       inset: 0;
       z-index: 2147483647;
@@ -41,18 +41,24 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    .release-button,
-    .release-chip,
-    .release-sheet {
+    .preview-button,
+    .preview-chip,
+    .preview-sheet {
       pointer-events: auto;
     }
 
-    .release-button {
+    .preview-button-row {
       position: fixed;
       top: calc(env(safe-area-inset-top, 0px) + 18px);
       right: 18px;
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .preview-button {
       min-height: 42px;
-      padding: 0 16px;
+      padding: 0 14px;
       border: 1px solid rgba(255, 255, 255, .22);
       border-radius: 999px;
       background: var(--garden-leaf);
@@ -62,7 +68,13 @@
       letter-spacing: -.01em;
     }
 
-    .release-chip {
+    .preview-button.secondary {
+      background: rgba(255, 253, 247, .98);
+      color: var(--garden-leaf);
+      border-color: var(--garden-border);
+    }
+
+    .preview-chip {
       position: fixed;
       left: 18px;
       bottom: calc(env(safe-area-inset-bottom, 0px) + 86px);
@@ -77,7 +89,7 @@
       white-space: nowrap;
     }
 
-    .release-sheet {
+    .preview-sheet {
       position: fixed;
       left: 16px;
       right: 16px;
@@ -93,17 +105,17 @@
       color: var(--garden-ink);
     }
 
-    .release-sheet[aria-hidden="false"] {
+    .preview-sheet[aria-hidden="false"] {
       display: block;
     }
 
-    .release-sheet h2 {
+    .preview-sheet h2 {
       margin: 0 0 6px;
       font-size: 20px;
       letter-spacing: -.03em;
     }
 
-    .release-sheet p {
+    .preview-sheet p {
       margin: 0 0 12px;
       color: var(--garden-muted);
       font-size: 14px;
@@ -111,19 +123,20 @@
       line-height: 1.35;
     }
 
-    .release-sheet ul {
+    .preview-sheet ol,
+    .preview-sheet ul {
       margin: 0;
       padding-left: 20px;
     }
 
-    .release-sheet li {
+    .preview-sheet li {
       margin: 8px 0;
       font-size: 14px;
       font-weight: 750;
       line-height: 1.35;
     }
 
-    .release-close {
+    .preview-close {
       width: 100%;
       margin-top: 14px;
       min-height: 42px;
@@ -139,40 +152,64 @@
   <script>
     window.addEventListener('load', () => {
       const root = document.createElement('div');
-      root.className = 'release-overlay-root';
+      root.className = 'preview-overlay-root';
       root.innerHTML = `
-        <button class="release-button" type="button" aria-controls="release-sheet" aria-expanded="false">TL;DR</button>
-        <div class="release-chip">Offline preview · rev 706d0e</div>
-        <section id="release-sheet" class="release-sheet" aria-hidden="true" role="dialog" aria-label="Offline update summary">
+        <div class="preview-button-row">
+          <button class="preview-button secondary" type="button" data-sheet="install">Install</button>
+          <button class="preview-button" type="button" data-sheet="release">TL;DR</button>
+        </div>
+        <div class="preview-chip">iPhone preview · weekly task details</div>
+        <section id="release-sheet" class="preview-sheet" aria-hidden="true" role="dialog" aria-label="Offline update summary">
           <h2>Offline update TL;DR</h2>
           <p>Latest pushed version for the iPhone web/offline preview.</p>
           <ul>
-            <li>Home screen card spacing tightened for iPhone.</li>
-            <li>Today’s actions no longer overlap inside the card.</li>
-            <li>Bottom navigation is framed and easier to tap.</li>
-            <li>iPhone web app metadata and safe-area support were added.</li>
-            <li>Current visible check: Offline preview · rev 706d0e.</li>
+            <li>Weekly tasks now open quick detail sheets.</li>
+            <li>Each task shows practical steps before marking done.</li>
+            <li>Task cards now use chevrons and shorter previews.</li>
+            <li>Current visible check: iPhone preview · weekly task details.</li>
           </ul>
-          <button class="release-close" type="button">Close</button>
+          <button class="preview-close" type="button">Close</button>
+        </section>
+        <section id="install-sheet" class="preview-sheet" aria-hidden="true" role="dialog" aria-label="Install on iPhone guide">
+          <h2>Add to iPhone Home Screen</h2>
+          <p>Use this to test the app more like an offline iPhone app.</p>
+          <ol>
+            <li>Open this page in Safari.</li>
+            <li>Tap the iOS share button.</li>
+            <li>Choose Add to Home Screen.</li>
+            <li>Open NZ Veg Garden from the new Home Screen icon.</li>
+          </ol>
+          <button class="preview-close" type="button">Close</button>
         </section>
       `;
       document.body.appendChild(root);
 
-      const releaseButton = root.querySelector('.release-button');
-      const releaseSheet = root.querySelector('#release-sheet');
-      const releaseClose = root.querySelector('.release-close');
+      const sheets = {
+        release: root.querySelector('#release-sheet'),
+        install: root.querySelector('#install-sheet'),
+      };
 
-      function setReleaseSheet(open) {
-        releaseSheet.setAttribute('aria-hidden', String(!open));
-        releaseButton.setAttribute('aria-expanded', String(open));
+      function setSheet(name) {
+        Object.entries(sheets).forEach(([key, sheet]) => {
+          sheet.setAttribute('aria-hidden', String(key !== name));
+        });
       }
 
-      releaseButton.addEventListener('click', () => {
-        const open = releaseSheet.getAttribute('aria-hidden') === 'true';
-        setReleaseSheet(open);
+      function closeSheets() {
+        Object.values(sheets).forEach((sheet) => sheet.setAttribute('aria-hidden', 'true'));
+      }
+
+      root.querySelectorAll('[data-sheet]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const name = button.getAttribute('data-sheet');
+          const currentOpen = sheets[name].getAttribute('aria-hidden') === 'false';
+          currentOpen ? closeSheets() : setSheet(name);
+        });
       });
 
-      releaseClose.addEventListener('click', () => setReleaseSheet(false));
+      root.querySelectorAll('.preview-close').forEach((button) => {
+        button.addEventListener('click', closeSheets);
+      });
     });
   </script>
   <script src="flutter_bootstrap.js" async></script>

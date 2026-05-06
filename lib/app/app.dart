@@ -51,6 +51,7 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       body: RepaintBoundary(
         child: IndexedStack(
           index: _selectedIndex,
@@ -59,36 +60,56 @@ class _AppShellState extends State<AppShell> {
       ),
       bottomNavigationBar: SafeArea(
         top: false,
-        child: NavigationBar(
-          height: 68,
-          labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-          selectedIndex: _selectedIndex,
-          onDestinationSelected: (index) {
-            if (index == _selectedIndex) {
-              HapticFeedback.selectionClick();
-              return;
-            }
+        minimum: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFCF5).withOpacity(.96),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: const Color(0xFFE7DFCE)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x18000000),
+                blurRadius: 24,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: NavigationBar(
+              height: 64,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (index) {
+                if (index == _selectedIndex) {
+                  HapticFeedback.selectionClick();
+                  return;
+                }
 
-            HapticFeedback.selectionClick();
-            setState(() => _selectedIndex = index);
-          },
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'Home',
+                HapticFeedback.selectionClick();
+                setState(() => _selectedIndex = index);
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.insights_outlined),
+                  selectedIcon: Icon(Icons.insights),
+                  label: 'Insights',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.more_horiz_outlined),
+                  selectedIcon: Icon(Icons.more_horiz),
+                  label: 'More',
+                ),
+              ],
             ),
-            NavigationDestination(
-              icon: Icon(Icons.insights_outlined),
-              selectedIcon: Icon(Icons.insights),
-              label: 'Insights',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.more_horiz_outlined),
-              selectedIcon: Icon(Icons.more_horiz),
-              label: 'More',
-            ),
-          ],
+          ),
         ),
       ),
     );

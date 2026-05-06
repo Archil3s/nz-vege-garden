@@ -40,4 +40,15 @@ class GardenProfileRepository {
     await prefs.setString(_experienceLevelKey, profile.experienceLevel);
     await prefs.setBool(_setupCompleteKey, profile.setupComplete);
   }
+
+  Future<void> clearProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove(_growingCropIdsKey);
+    await prefs.remove(_wishlistCropIdsKey);
+    await prefs.remove(_avoidedCropIdsKey);
+    await prefs.remove(_goalIdsKey);
+    await prefs.remove(_experienceLevelKey);
+    await prefs.remove(_setupCompleteKey);
+  }
 }

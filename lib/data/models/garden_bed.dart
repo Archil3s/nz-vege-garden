@@ -5,6 +5,7 @@ class GardenBed {
     required this.type,
     required this.lengthCm,
     required this.widthCm,
+    required this.layoutStyle,
     required this.sunExposure,
     required this.windExposure,
     required this.notes,
@@ -17,6 +18,7 @@ class GardenBed {
   final String type;
   final int? lengthCm;
   final int? widthCm;
+  final String layoutStyle;
   final String sunExposure;
   final String windExposure;
   final String notes;
@@ -46,6 +48,7 @@ class GardenBed {
     String? type,
     int? lengthCm,
     int? widthCm,
+    String? layoutStyle,
     String? sunExposure,
     String? windExposure,
     String? notes,
@@ -58,6 +61,7 @@ class GardenBed {
       type: type ?? this.type,
       lengthCm: lengthCm ?? this.lengthCm,
       widthCm: widthCm ?? this.widthCm,
+      layoutStyle: layoutStyle ?? this.layoutStyle,
       sunExposure: sunExposure ?? this.sunExposure,
       windExposure: windExposure ?? this.windExposure,
       notes: notes ?? this.notes,
@@ -71,6 +75,7 @@ class GardenBed {
     required String type,
     int? lengthCm,
     int? widthCm,
+    String layoutStyle = 'rows',
     String sunExposure = 'full_sun',
     String windExposure = 'moderate',
     String notes = '',
@@ -84,6 +89,7 @@ class GardenBed {
       type: type,
       lengthCm: lengthCm,
       widthCm: widthCm,
+      layoutStyle: layoutStyle,
       sunExposure: sunExposure,
       windExposure: windExposure,
       notes: notes,
@@ -99,6 +105,7 @@ class GardenBed {
       type: json['type'] as String,
       lengthCm: json['lengthCm'] as int?,
       widthCm: json['widthCm'] as int?,
+      layoutStyle: json['layoutStyle'] as String? ?? 'rows',
       sunExposure: json['sunExposure'] as String,
       windExposure: json['windExposure'] as String,
       notes: json['notes'] as String,
@@ -114,6 +121,7 @@ class GardenBed {
       'type': type,
       'lengthCm': lengthCm,
       'widthCm': widthCm,
+      'layoutStyle': layoutStyle,
       'sunExposure': sunExposure,
       'windExposure': windExposure,
       'notes': notes,

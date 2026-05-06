@@ -32,7 +32,7 @@ class FriendlyHomeScreen extends StatefulWidget {
 }
 
 class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
-  final PageController _controller = PageController(viewportFraction: .92);
+  final PageController _controller = PageController(viewportFraction: .94);
   int _page = 0;
 
   @override
@@ -43,6 +43,8 @@ class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -52,8 +54,8 @@ class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
       body: Stack(
         children: [
           const Positioned.fill(child: ColoredBox(color: FriendlyHomeScreen.canvas)),
-          Positioned(top: -160, right: -136, child: _Blob(color: FriendlyHomeScreen.mint.withOpacity(.70), size: 300)),
-          Positioned(bottom: -170, left: -160, child: _Blob(color: FriendlyHomeScreen.sun.withOpacity(.15), size: 320)),
+          Positioned(top: -160, right: -136, child: _Blob(color: FriendlyHomeScreen.mint.withOpacity(.62), size: 300)),
+          Positioned(bottom: -170, left: -160, child: _Blob(color: FriendlyHomeScreen.sun.withOpacity(.14), size: 320)),
           FutureBuilder<_HomeData>(
             future: _load(),
             builder: (context, snapshot) {
@@ -87,6 +89,7 @@ class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
                   PageView.builder(
                     controller: _controller,
                     itemCount: pages.length,
+                    physics: const BouncingScrollPhysics(),
                     onPageChanged: (index) {
                       HapticFeedback.selectionClick();
                       setState(() => _page = index);
@@ -94,10 +97,10 @@ class _FriendlyHomeScreenState extends State<FriendlyHomeScreen> {
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: EdgeInsets.fromLTRB(
-                          index == 0 ? 20 : 7,
-                          MediaQuery.paddingOf(context).top + 82,
-                          index == pages.length - 1 ? 20 : 7,
-                          118,
+                          index == 0 ? 12 : 6,
+                          topInset + 68,
+                          index == pages.length - 1 ? 12 : 6,
+                          122,
                         ),
                         child: pages[index],
                       );
@@ -158,20 +161,17 @@ class _TodayCard extends StatelessWidget {
     return _FramedCard(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final heroHeight = (constraints.maxHeight * .53).clamp(220.0, 320.0);
+          final compact = constraints.maxHeight < 540;
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                height: heroHeight,
-                child: _TodayHero(
-                  regionName: regionName,
-                  settings: settings,
-                ),
+              Flexible(
+                flex: compact ? 11 : 12,
+                child: _TodayHero(regionName: regionName, settings: settings, compact: compact),
               ),
-              const SizedBox(height: 14),
-              Expanded(
-                child: _TodayActionsPanel(firstCrop: firstCrop),
+              SizedBox(height: compact ? 10 : 12),
+              Flexible(
+                flex: compact ? 8 : 7,
+                child: _TodayActionsPanel(firstCrop: firstCrop, compact: compact),
               ),
             ],
           );
@@ -182,16 +182,17 @@ class _TodayCard extends StatelessWidget {
 }
 
 class _TodayHero extends StatelessWidget {
-  const _TodayHero({required this.regionName, required this.settings});
+  const _TodayHero({required this.regionName, required this.settings, required this.compact});
 
   final String regionName;
   final AppSettings settings;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       clipBehavior: Clip.antiAlias,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(compact ? 16 : 20),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -199,7 +200,7 @@ class _TodayHero extends StatelessWidget {
           colors: [FriendlyHomeScreen.leafDark, FriendlyHomeScreen.leaf, FriendlyHomeScreen.moss],
         ),
         borderRadius: BorderRadius.all(Radius.circular(30)),
-        boxShadow: [BoxShadow(color: Color(0x22172D22), blurRadius: 26, offset: Offset(0, 14))],
+        boxShadow: [BoxShadow(color: Color(0x22172D22), blurRadius: 24, offset: Offset(0, 12))],
       ),
       child: Stack(
         children: [
@@ -222,12 +223,12 @@ class _TodayHero extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    width: 74,
-                    height: 74,
-                    padding: const EdgeInsets.all(12),
+                    width: compact ? 62 : 72,
+                    height: compact ? 62 : 72,
+                    padding: const EdgeInsets.all(11),
                     decoration: BoxDecoration(
                       color: FriendlyHomeScreen.surface.withOpacity(.86),
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(22),
                       border: Border.all(color: Colors.white.withOpacity(.32)),
                     ),
                     child: SvgPicture.asset('assets/icons/seedling.svg'),
@@ -235,20 +236,22 @@ class _TodayHero extends StatelessWidget {
                 ],
               ),
               const Spacer(),
-              const Text(
+              Text(
                 'Your garden\ntoday',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 36,
+                  fontSize: compact ? 31 : 36,
                   height: .94,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: -1.2,
+                  letterSpacing: -1.1,
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: compact ? 7 : 10),
               Text(
                 'Simple actions for right now.',
-                style: TextStyle(color: Colors.white.withOpacity(.82), fontWeight: FontWeight.w800),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.white.withOpacity(.82), fontSize: compact ? 13 : 14, fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -259,27 +262,28 @@ class _TodayHero extends StatelessWidget {
 }
 
 class _TodayActionsPanel extends StatelessWidget {
-  const _TodayActionsPanel({required this.firstCrop});
+  const _TodayActionsPanel({required this.firstCrop, required this.compact});
 
   final Crop? firstCrop;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.all(compact ? 10 : 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.82),
-        borderRadius: BorderRadius.circular(28),
+        color: Colors.white.withOpacity(.86),
+        borderRadius: BorderRadius.circular(26),
         border: Border.all(color: FriendlyHomeScreen.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+          Padding(
+            padding: EdgeInsets.fromLTRB(4, 0, 4, compact ? 6 : 8),
             child: Text(
               'Today’s actions',
-              style: TextStyle(color: FriendlyHomeScreen.ink, fontSize: 16, fontWeight: FontWeight.w900),
+              style: TextStyle(color: FriendlyHomeScreen.ink, fontSize: compact ? 15 : 16, fontWeight: FontWeight.w900),
             ),
           ),
           Expanded(
@@ -291,6 +295,7 @@ class _TodayActionsPanel extends StatelessWidget {
                     title: 'Sow now',
                     subtitle: firstCrop?.commonName ?? 'No picks this month',
                     color: FriendlyHomeScreen.leaf,
+                    compact: true,
                     onTap: () {
                       if (firstCrop == null) {
                         _snack(context, 'No sowing picks for this month.');
@@ -300,13 +305,14 @@ class _TodayActionsPanel extends StatelessWidget {
                     },
                   ),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: compact ? 7 : 9),
                 Expanded(
                   child: _ActionRow(
                     iconAsset: 'assets/icons/pruning_shears.svg',
                     title: 'Prune guide',
                     subtitle: 'Trees, shrubs and vines',
                     color: FriendlyHomeScreen.clay,
+                    compact: true,
                     onTap: () => _openScreen(context, const PruningGuideScreen()),
                   ),
                 ),
@@ -442,12 +448,12 @@ class _FramedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: FriendlyHomeScreen.surface.withOpacity(.92),
-        borderRadius: BorderRadius.circular(36),
+        color: FriendlyHomeScreen.surface.withOpacity(.94),
+        borderRadius: BorderRadius.circular(34),
         border: Border.all(color: FriendlyHomeScreen.border),
-        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 28, offset: Offset(0, 14))],
+        boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 24, offset: Offset(0, 12))],
       ),
       child: child,
     );
@@ -504,46 +510,48 @@ class _GardenCard extends StatelessWidget {
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.iconAsset, required this.title, required this.subtitle, required this.color, required this.onTap});
+  const _ActionRow({required this.iconAsset, required this.title, required this.subtitle, required this.color, required this.onTap, this.compact = false});
 
   final String iconAsset;
   final String title;
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = compact ? 38.0 : 48.0;
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(compact ? 18 : 22),
         onTap: () {
           HapticFeedback.selectionClick();
           onTap();
         },
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14, vertical: compact ? 7 : 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(.94),
-            borderRadius: BorderRadius.circular(22),
+            color: Colors.white.withOpacity(.96),
+            borderRadius: BorderRadius.circular(compact ? 18 : 22),
             border: Border.all(color: color.withOpacity(.18)),
           ),
           child: Row(children: [
             Container(
-              width: 48,
-              height: 48,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: color.withOpacity(.10), borderRadius: BorderRadius.circular(16)),
+              width: iconSize,
+              height: iconSize,
+              padding: EdgeInsets.all(compact ? 7 : 8),
+              decoration: BoxDecoration(color: color.withOpacity(.10), borderRadius: BorderRadius.circular(compact ? 13 : 16)),
               child: SvgPicture.asset(iconAsset),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: compact ? 10 : 12),
             Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.ink, fontWeight: FontWeight.w900, fontSize: 17)),
-              const SizedBox(height: 3),
-              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700)),
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: FriendlyHomeScreen.ink, fontWeight: FontWeight.w900, fontSize: compact ? 15 : 17)),
+              SizedBox(height: compact ? 1 : 3),
+              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: FriendlyHomeScreen.muted, fontWeight: FontWeight.w700, fontSize: compact ? 12 : 14)),
             ])),
-            Icon(Icons.chevron_right, color: color),
+            Icon(Icons.chevron_right, color: color, size: compact ? 24 : 28),
           ]),
         ),
       ),

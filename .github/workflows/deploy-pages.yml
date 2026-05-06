@@ -50,44 +50,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Normalize preview-only Flutter compatibility
-        run: |
-          python <<'PY'
-          from pathlib import Path
-
-          tasks = Path('lib/features/tasks/weekly_tasks_screen.dart')
-          tasks.write_text(tasks.read_text().replace('FontWeight.w650', 'FontWeight.w600'))
-
-          home = Path('lib/features/home/friendly_home_screen.dart')
-          source = home.read_text()
-
-          if 'late final Future<_HomeData> _homeDataFuture;' not in source:
-              source = source.replace(
-                  '  int _page = 0;\n\n  @override\n  void dispose()',
-                  '  int _page = 0;\n  late final Future<_HomeData> _homeDataFuture;\n\n  @override\n  void initState() {\n    super.initState();\n    _homeDataFuture = _load();\n  }\n\n  @override\n  void dispose()',
-              )
-          source = source.replace('future: _load(),', 'future: _homeDataFuture,')
-          source = source.replace('PageController(viewportFraction: .94)', 'PageController(viewportFraction: 1)')
-          source = source.replace('physics: const BouncingScrollPhysics(),', 'physics: const PageScrollPhysics(),')
-
-          if 'void _goToPage(int index)' not in source:
-              source = source.replace(
-                  '  @override\n  Widget build(BuildContext context) {',
-                  '  void _goToPage(int index) {\n    HapticFeedback.selectionClick();\n    _controller.animateToPage(\n      index,\n      duration: const Duration(milliseconds: 240),\n      curve: Curves.easeOutCubic,\n    );\n  }\n\n  @override\n  Widget build(BuildContext context) {',
-              )
-
-          source = source.replace(
-              """                  Positioned(\n                    left: 0,\n                    right: 0,\n                    bottom: 78,\n                    child: _PageDots(count: pages.length, activeIndex: _page),\n                  ),""",
-              """                  Positioned(\n                    left: 20,\n                    right: 20,\n                    bottom: 72,\n                    child: _PageControls(\n                      count: pages.length,\n                      activeIndex: _page,\n                      onPrevious: _page == 0 ? null : () => _goToPage(_page - 1),\n                      onNext: _page == pages.length - 1 ? null : () => _goToPage(_page + 1),\n                    ),\n                  ),""",
-          )
-
-          if 'class _PageControls extends StatelessWidget' not in source:
-              source = source.replace(
-                  'class _PageDots extends StatelessWidget {',
-                  '''class _PageControls extends StatelessWidget {\n  const _PageControls({required this.count, required this.activeIndex, required this.onPrevious, required this.onNext});\n\n  final int count;\n  final int activeIndex;\n  final VoidCallback? onPrevious;\n  final VoidCallback? onNext;\n\n  @override\n  Widget build(BuildContext context) {\n    return Container(\n      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),\n      decoration: BoxDecoration(\n        color: FriendlyHomeScreen.surface.withOpacity(.96),\n        borderRadius: BorderRadius.circular(999),\n        border: Border.all(color: FriendlyHomeScreen.border),\n        boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 18, offset: Offset(0, 8))],\n      ),\n      child: Row(\n        children: [\n          _NavButton(label: 'Back', icon: Icons.chevron_left, onPressed: onPrevious),\n          Expanded(child: _PageDots(count: count, activeIndex: activeIndex)),\n          _NavButton(label: 'Next', icon: Icons.chevron_right, onPressed: onNext, trailing: true),\n        ],\n      ),\n    );\n  }\n}\n\nclass _NavButton extends StatelessWidget {\n  const _NavButton({required this.label, required this.icon, required this.onPressed, this.trailing = false});\n\n  final String label;\n  final IconData icon;\n  final VoidCallback? onPressed;\n  final bool trailing;\n\n  @override\n  Widget build(BuildContext context) {\n    final children = [\n      Icon(icon, size: 20),\n      Text(label, style: const TextStyle(fontWeight: FontWeight.w900)),\n    ];\n\n    return TextButton(\n      onPressed: onPressed,\n      style: TextButton.styleFrom(\n        padding: const EdgeInsets.symmetric(horizontal: 8),\n        minimumSize: const Size(64, 40),\n      ),\n      child: Row(\n        mainAxisSize: MainAxisSize.min,\n        children: trailing ? children.reversed.toList() : children,\n      ),\n    );\n  }\n}\n\nclass _PageDots extends StatelessWidget {''',
-              )
-          home.write_text(source)
-          PY
+      - name: Apply iPhone preview layout patch
+        run: python tools/iphone_preview_patch.py
 
       - name: Analyze Flutter project without blocking preview
         continue-on-error: true

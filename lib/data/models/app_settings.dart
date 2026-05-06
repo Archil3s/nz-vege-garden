@@ -5,6 +5,7 @@ class AppSettings {
     required this.windExposure,
     required this.gardenType,
     required this.weeklyReminderEnabled,
+    required this.hasCompletedSetup,
   });
 
   static const defaultSettings = AppSettings(
@@ -13,6 +14,7 @@ class AppSettings {
     windExposure: 'moderate',
     gardenType: 'raised_bed',
     weeklyReminderEnabled: false,
+    hasCompletedSetup: false,
   );
 
   final String regionId;
@@ -20,6 +22,7 @@ class AppSettings {
   final String windExposure;
   final String gardenType;
   final bool weeklyReminderEnabled;
+  final bool hasCompletedSetup;
 
   AppSettings copyWith({
     String? regionId,
@@ -27,6 +30,7 @@ class AppSettings {
     String? windExposure,
     String? gardenType,
     bool? weeklyReminderEnabled,
+    bool? hasCompletedSetup,
   }) {
     return AppSettings(
       regionId: regionId ?? this.regionId,
@@ -34,6 +38,7 @@ class AppSettings {
       windExposure: windExposure ?? this.windExposure,
       gardenType: gardenType ?? this.gardenType,
       weeklyReminderEnabled: weeklyReminderEnabled ?? this.weeklyReminderEnabled,
+      hasCompletedSetup: hasCompletedSetup ?? this.hasCompletedSetup,
     );
   }
 }

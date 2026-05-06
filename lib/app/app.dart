@@ -11,6 +11,7 @@ import '../features/pests/pest_guide_screen.dart';
 import '../features/pruning/pruning_guide_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/tasks/weekly_tasks_screen.dart';
+import '../features/water/watering_planner_screen.dart';
 import 'app_theme.dart';
 
 class NzVegeGardenApp extends StatelessWidget {
@@ -142,6 +143,12 @@ class _MoreScreen extends StatelessWidget {
           _MoreSectionCard(
             title: 'Planning',
             children: [
+              _MoreSectionTile(
+                icon: Icons.water_drop_outlined,
+                title: 'Water & soil planner',
+                description: 'Estimate dry-out risk using weather, wind, rain, soil type, mulch, and containers.',
+                onTap: () => onOpenSection(const WateringPlannerScreen()),
+              ),
               _MoreSectionTile(
                 icon: Icons.shopping_basket_outlined,
                 title: 'Harvest tracker',

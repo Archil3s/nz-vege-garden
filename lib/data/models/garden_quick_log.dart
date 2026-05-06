@@ -6,6 +6,7 @@ class GardenQuickLog {
     required this.label,
     required this.createdAtIso,
     this.cropId,
+    this.scope,
     this.note,
   });
 
@@ -13,10 +14,25 @@ class GardenQuickLog {
   final String label;
   final String createdAtIso;
   final String? cropId;
+  final String? scope;
   final String? note;
 
   DateTime get createdAt {
     return DateTime.tryParse(createdAtIso) ?? DateTime.now();
+  }
+
+  bool get isCropSpecific => cropId != null && cropId!.isNotEmpty;
+
+  String get targetLabel {
+    if (scope != null && scope!.isNotEmpty) {
+      return scope!;
+    }
+
+    if (isCropSpecific) {
+      return cropId!;
+    }
+
+    return 'All garden';
   }
 
   String toStorageString() {
@@ -25,12 +41,23 @@ class GardenQuickLog {
       'label': label,
       'createdAtIso': createdAtIso,
       'cropId': cropId,
+      'scope': scope,
       'note': note,
     });
   }
 
   factory GardenQuickLog.fromStorageString(String value) {
-    final json = Map<String, dynamic>.from(jsonDecode(value) as Map);
+    final decoded = jsonDecode(value);
+
+    if (decoded is! Map) {
+      return GardenQuickLog(
+        type: 'note',
+        label: 'Garden note',
+        createdAtIso: DateTime.now().toIso8601String(),
+      );
+    }
+
+    final json = Map<String, dynamic>.from(decoded);
 
     return GardenQuickLog(
       type: json['type'] as String? ?? 'note',
@@ -38,6 +65,7 @@ class GardenQuickLog {
       createdAtIso:
           json['createdAtIso'] as String? ?? DateTime.now().toIso8601String(),
       cropId: json['cropId'] as String?,
+      scope: json['scope'] as String?,
       note: json['note'] as String?,
     );
   }

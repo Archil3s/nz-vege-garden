@@ -7,6 +7,7 @@ import '../features/harvest/harvest_tracker_screen.dart';
 import '../features/home/friendly_home_screen.dart';
 import '../features/insights/insights_screen.dart';
 import '../features/journal/garden_journal_screen.dart';
+import '../features/memory/garden_memory_screen.dart';
 import '../features/pests/pest_guide_screen.dart';
 import '../features/profile/garden_profile_screen.dart';
 import '../features/pruning/pruning_guide_screen.dart';
@@ -210,6 +211,19 @@ class _MoreScreen extends StatelessWidget {
                 title: 'Pest guide',
                 description: 'Offline help for common pests and crop problems.',
                 onTap: () => onOpenSection(const PestGuideScreen()),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _MoreSectionCard(
+            title: 'Personal',
+            children: [
+              _MoreSectionTile(
+                icon: Icons.history_outlined,
+                title: 'Garden memory',
+                description:
+                    'Personal logs, crop memory, and follow-up nudges.',
+                onTap: () => onOpenSection(const GardenMemoryScreen()),
               ),
             ],
           ),

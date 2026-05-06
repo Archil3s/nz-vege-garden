@@ -31,7 +31,7 @@ class GardenQuickLogRepository {
     final nextLogs = [
       log,
       ...logs,
-    ].take(40).map((item) => item.toStorageString()).toList(growable: false);
+    ].take(100).map((item) => item.toStorageString()).toList(growable: false);
 
     await prefs.setStringList(_logsKey, nextLogs);
   }

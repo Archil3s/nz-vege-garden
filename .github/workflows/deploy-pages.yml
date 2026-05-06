@@ -51,7 +51,22 @@ jobs:
         run: flutter pub get
 
       - name: Normalize preview-only Flutter compatibility
-        run: python -c "from pathlib import Path; p=Path('lib/features/tasks/weekly_tasks_screen.dart'); p.write_text(p.read_text().replace('FontWeight.w650', 'FontWeight.w600'))"
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          tasks = Path('lib/features/tasks/weekly_tasks_screen.dart')
+          tasks.write_text(tasks.read_text().replace('FontWeight.w650', 'FontWeight.w600'))
+
+          home = Path('lib/features/home/friendly_home_screen.dart')
+          source = home.read_text()
+          source = source.replace('future: _load(),', 'future: _homeDataFuture,')
+          source = source.replace(
+              '  int _page = 0;\n\n  @override\n  void dispose()',
+              '  int _page = 0;\n  late final Future<_HomeData> _homeDataFuture;\n\n  @override\n  void initState() {\n    super.initState();\n    _homeDataFuture = _load();\n  }\n\n  @override\n  void dispose()',
+          )
+          home.write_text(source)
+          PY
 
       - name: Analyze Flutter project without blocking preview
         continue-on-error: true

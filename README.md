@@ -85,6 +85,7 @@ Progress tracker:
 - [Project progress log](docs/progress_log.md)
 - [Local testing checklist](docs/local_testing_checklist.md)
 - [UX and performance guidelines](docs/ux_performance_guidelines.md)
+- [ChatGPT development instructions](docs/chatgpt_development_instructions.md)
 - [MVP scope](docs/mvp_scope.md)
 - [Data model](docs/data_model.md)
 - [NZ growing regions](docs/nz_regions.md)

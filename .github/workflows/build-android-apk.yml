@@ -42,6 +42,9 @@ jobs:
       - name: Generate Android platform files
         run: flutter create --platforms=android --project-name nz_vege_garden .
 
+      - name: Enable Android desugaring
+        run: python tools/enable_android_desugaring.py
+
       - name: Get packages
         run: flutter pub get
 

@@ -1,5 +1,5 @@
 name: nz_vege_garden
-description: Offline-first New Zealand vegetable garden planner for home growers.
+description: Offline-first New Zealand pest and spray planner for home growers.
 publish_to: "none"
 version: 0.1.0+1
 
@@ -14,7 +14,6 @@ dependencies:
   collection: ^1.18.0
   intl: ^0.19.0
   shared_preferences: ^2.2.3
-  flutter_local_notifications: ^17.2.1
   flutter_svg: ^2.0.10+1
   path_provider: ^2.1.3
 

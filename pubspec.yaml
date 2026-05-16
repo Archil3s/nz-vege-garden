@@ -1,5 +1,5 @@
 name: nz_vege_garden
-description: Offline-first New Zealand pest and spray planner for home growers.
+description: Offline-first New Zealand pest tracker and location pest pressure notifier for home growers.
 publish_to: "none"
 version: 0.1.0+1
 

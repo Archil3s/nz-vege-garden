@@ -5,7 +5,31 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/garden_data_repository.dart';
+import '../../data/models/nz_region.dart';
 import '../../data/models/pest_problem.dart';
+
+const _fallbackRegion = NzRegion(
+  id: 'auckland',
+  name: 'Auckland',
+  island: 'North Island',
+  climateSummary: 'Mild winters, humid summers, good year-round growing potential.',
+  defaultFrostRisk: 'low',
+  defaultWindRisk: 'moderate',
+);
+
+const _warmHumidRegionIds = {
+  'northland',
+  'auckland',
+  'waikato_bay_of_plenty',
+};
+
+const _fungusRiskRegionIds = {
+  'northland',
+  'auckland',
+  'waikato_bay_of_plenty',
+  'taranaki_manawatu',
+  'west_coast',
+};
 
 class PestTrackerScreen extends StatefulWidget {
   const PestTrackerScreen({super.key});
@@ -16,7 +40,7 @@ class PestTrackerScreen extends StatefulWidget {
 
 class _PestTrackerScreenState extends State<PestTrackerScreen> {
   final _repository = const GardenDataRepository();
-  final _store = const PestSprayScheduleStore();
+  final _store = const PestTrackerStore();
   late Future<_PestTrackerData> _dataFuture;
 
   @override
@@ -27,15 +51,28 @@ class _PestTrackerScreenState extends State<PestTrackerScreen> {
 
   Future<_PestTrackerData> _loadData() async {
     final problems = await _repository.loadPestProblems();
-    final entries = await _store.loadEntries();
-    return _PestTrackerData(problems: problems, entries: entries);
+    final regions = await _repository.loadRegions();
+    final observations = await _store.loadObservations();
+    final selectedRegionId = await _store.loadSelectedRegionId();
+
+    return _PestTrackerData(
+      problems: problems,
+      regions: regions,
+      observations: observations,
+      selectedRegionId: selectedRegionId,
+    );
   }
 
   Future<void> _reload() async {
     setState(() => _dataFuture = _loadData());
   }
 
-  Future<void> _openEntryForm({PestSprayEntry? entry}) async {
+  Future<void> _setRegion(String regionId) async {
+    await _store.saveSelectedRegionId(regionId);
+    await _reload();
+  }
+
+  Future<void> _openObservationForm({PestObservation? observation}) async {
     final data = await _dataFuture;
     if (!mounted) return;
 
@@ -43,11 +80,11 @@ class _PestTrackerScreenState extends State<PestTrackerScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => _PestSprayEntryForm(
+      builder: (context) => _PestObservationForm(
         problems: data.problems,
-        entry: entry,
-        onSave: (updatedEntry) async {
-          await _store.upsertEntry(updatedEntry);
+        observation: observation,
+        onSave: (updatedObservation) async {
+          await _store.upsertObservation(updatedObservation);
           if (mounted) Navigator.of(context).pop(true);
         },
       ),
@@ -56,30 +93,19 @@ class _PestTrackerScreenState extends State<PestTrackerScreen> {
     if (saved == true) await _reload();
   }
 
-  Future<void> _markSprayed(PestSprayEntry entry) async {
-    final today = DateUtils.dateOnly(DateTime.now());
-    await _store.upsertEntry(
-      entry.copyWith(
-        lastSprayedDate: today,
-        nextSprayDate: today.add(Duration(days: entry.intervalDays)),
-      ),
-    );
-    await _reload();
-  }
-
-  Future<void> _deleteEntry(PestSprayEntry entry) async {
-    await _store.deleteEntry(entry.id);
+  Future<void> _deleteObservation(PestObservation observation) async {
+    await _store.deleteObservation(observation.id);
     await _reload();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pest & spray planner')),
+      appBar: AppBar(title: const Text('Pest pressure tracker')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEntryForm(),
+        onPressed: () => _openObservationForm(),
         icon: const Icon(Icons.add),
-        label: const Text('Add issue'),
+        label: const Text('Add sighting'),
       ),
       body: FutureBuilder<_PestTrackerData>(
         future: _dataFuture,
@@ -92,37 +118,41 @@ class _PestTrackerScreenState extends State<PestTrackerScreen> {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text('Could not load pest planner: ${snapshot.error}'),
+                child: Text('Could not load pest tracker: ${snapshot.error}'),
               ),
             );
           }
 
-          final data = snapshot.data ?? const _PestTrackerData(problems: [], entries: []);
-          final sortedEntries = data.entries.toList()
-            ..sort((a, b) => a.nextSprayDate.compareTo(b.nextSprayDate));
+          final data = snapshot.data ?? _PestTrackerData.empty();
+          final sortedObservations = data.observations.toList()
+            ..sort((a, b) => b.sightedDate.compareTo(a.sightedDate));
 
           return RefreshIndicator(
             onRefresh: _reload,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
               children: [
-                _HeroCard(entries: sortedEntries),
+                _LocationPressureNotifierCard(
+                  region: data.selectedRegion,
+                  regions: data.regions.isEmpty ? const [_fallbackRegion] : data.regions,
+                  observations: sortedObservations,
+                  onRegionChanged: _setRegion,
+                ),
                 const SizedBox(height: 12),
                 _PestReferenceCard(problems: data.problems),
                 const SizedBox(height: 16),
-                Text('Spray schedule', style: Theme.of(context).textTheme.titleLarge),
+                Text('Pest sightings', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
-                if (sortedEntries.isEmpty)
-                  _EmptyScheduleCard(onAdd: () => _openEntryForm())
+                if (sortedObservations.isEmpty)
+                  _EmptyTrackerCard(onAdd: () => _openObservationForm())
                 else
-                  ...sortedEntries.map(
-                    (entry) => Padding(
+                  ...sortedObservations.map(
+                    (observation) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _PestSprayEntryCard(
-                        entry: entry,
-                        onEdit: () => _openEntryForm(entry: entry),
-                        onDelete: () => _deleteEntry(entry),
-                        onMarkSprayed: () => _markSprayed(entry),
+                      child: _PestObservationCard(
+                        observation: observation,
+                        onEdit: () => _openObservationForm(observation: observation),
+                        onDelete: () => _deleteObservation(observation),
                       ),
                     ),
                   ),
@@ -135,16 +165,26 @@ class _PestTrackerScreenState extends State<PestTrackerScreen> {
   }
 }
 
-class _HeroCard extends StatelessWidget {
-  const _HeroCard({required this.entries});
+class _LocationPressureNotifierCard extends StatelessWidget {
+  const _LocationPressureNotifierCard({
+    required this.region,
+    required this.regions,
+    required this.observations,
+    required this.onRegionChanged,
+  });
 
-  final List<PestSprayEntry> entries;
+  final NzRegion region;
+  final List<NzRegion> regions;
+  final List<PestObservation> observations;
+  final ValueChanged<String> onRegionChanged;
 
   @override
   Widget build(BuildContext context) {
-    final now = DateUtils.dateOnly(DateTime.now());
-    final dueToday = entries.where((entry) => !entry.nextSprayDate.isAfter(now)).length;
-    final fungusPlans = entries.where((entry) => entry.issueType == PestIssueType.fungus).length;
+    final report = PestPressureReport.calculate(
+      region: region,
+      observations: observations,
+      date: DateUtils.dateOnly(DateTime.now()),
+    );
 
     return Card(
       child: Padding(
@@ -152,33 +192,72 @@ class _HeroCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Track pest pressure and keep fungus spraying on schedule.', style: Theme.of(context).textTheme.titleLarge),
+            Text('Location pest pressure notifier', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            const Text('Choose your NZ region. The app combines local climate risk, season, and recent sightings to show pest pressure.'),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              value: region.id,
+              decoration: const InputDecoration(
+                labelText: 'Location',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.location_on_outlined),
+              ),
+              items: regions
+                  .map(
+                    (item) => DropdownMenuItem(
+                      value: item.id,
+                      child: Text(item.name),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                if (value != null) onRegionChanged(value);
+              },
+            ),
             const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(report.level.icon),
+              title: Text(report.level.label),
+              subtitle: Text(report.message),
+            ),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _StatChip(icon: Icons.bug_report_outlined, label: '${entries.length} active'),
-                _StatChip(icon: Icons.notification_important_outlined, label: '$dueToday due'),
-                _StatChip(icon: Icons.sanitizer_outlined, label: '$fungusPlans fungus'),
+                Chip(
+                  avatar: const Icon(Icons.eco_outlined, size: 18),
+                  label: Text(region.name),
+                ),
+                Chip(
+                  avatar: const Icon(Icons.calendar_month_outlined, size: 18),
+                  label: Text(DateFormat.MMMM().format(DateTime.now())),
+                ),
+                Chip(
+                  avatar: const Icon(Icons.bug_report_outlined, size: 18),
+                  label: Text('${report.recentSightings} recent sightings'),
+                ),
               ],
+            ),
+            const SizedBox(height: 10),
+            ...report.alerts.map(
+              (alert) => Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.notifications_active_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(alert)),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  const _StatChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(avatar: Icon(icon, size: 18), label: Text(label));
   }
 }
 
@@ -211,12 +290,12 @@ class _PestReferenceCardState extends State<_PestReferenceCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Quick pest and fungus guide', style: Theme.of(context).textTheme.titleMedium),
+            Text('Pest guide', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
             TextField(
               decoration: const InputDecoration(
-                labelText: 'Search symptoms',
-                hintText: 'Example: mildew, aphids, yellow leaves',
+                labelText: 'Search pests or symptoms',
+                hintText: 'Example: mildew, aphids, holes, yellow leaves',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
                 isDense: true,
@@ -279,8 +358,8 @@ class _MiniSection extends StatelessWidget {
   }
 }
 
-class _EmptyScheduleCard extends StatelessWidget {
-  const _EmptyScheduleCard({required this.onAdd});
+class _EmptyTrackerCard extends StatelessWidget {
+  const _EmptyTrackerCard({required this.onAdd});
 
   final VoidCallback onAdd;
 
@@ -292,11 +371,11 @@ class _EmptyScheduleCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('No pest or fungus issues tracked yet.', style: Theme.of(context).textTheme.titleMedium),
+            Text('No pest sightings tracked yet.', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            const Text('Add an issue to record the crop, pressure level, treatment, and next spray date.'),
+            const Text('Add sightings as you find them. The pressure notifier uses recent entries to raise or lower risk.'),
             const SizedBox(height: 12),
-            FilledButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: const Text('Add first issue')),
+            FilledButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: const Text('Add first sighting')),
           ],
         ),
       ),
@@ -304,28 +383,26 @@ class _EmptyScheduleCard extends StatelessWidget {
   }
 }
 
-class _PestSprayEntryCard extends StatelessWidget {
-  const _PestSprayEntryCard({
-    required this.entry,
+class _PestObservationCard extends StatelessWidget {
+  const _PestObservationCard({
+    required this.observation,
     required this.onEdit,
     required this.onDelete,
-    required this.onMarkSprayed,
   });
 
-  final PestSprayEntry entry;
+  final PestObservation observation;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final VoidCallback onMarkSprayed;
 
   @override
   Widget build(BuildContext context) {
     final today = DateUtils.dateOnly(DateTime.now());
-    final daysUntilDue = entry.nextSprayDate.difference(today).inDays;
-    final dueLabel = daysUntilDue < 0
-        ? '${daysUntilDue.abs()} days overdue'
-        : daysUntilDue == 0
-            ? 'Due today'
-            : 'Due in $daysUntilDue days';
+    final ageDays = today.difference(observation.sightedDate).inDays;
+    final ageLabel = ageDays == 0
+        ? 'Seen today'
+        : ageDays == 1
+            ? 'Seen yesterday'
+            : 'Seen $ageDays days ago';
 
     return Card(
       child: Padding(
@@ -336,14 +413,14 @@ class _PestSprayEntryCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(entry.issueType.icon),
+                Icon(observation.issueType.icon),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(entry.title, style: Theme.of(context).textTheme.titleMedium),
-                      Text('${entry.cropOrArea} • ${entry.severity.label}'),
+                      Text(observation.name, style: Theme.of(context).textTheme.titleMedium),
+                      Text('${observation.cropOrArea} • ${observation.severity.label}'),
                     ],
                   ),
                 ),
@@ -364,27 +441,15 @@ class _PestSprayEntryCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                Chip(avatar: const Icon(Icons.calendar_today_outlined, size: 18), label: Text(dueLabel)),
-                Chip(avatar: const Icon(Icons.repeat_outlined, size: 18), label: Text('Every ${entry.intervalDays} days')),
-                if (entry.treatment.isNotEmpty)
-                  Chip(avatar: const Icon(Icons.sanitizer_outlined, size: 18), label: Text(entry.treatment)),
+                Chip(avatar: Icon(observation.issueType.icon, size: 18), label: Text(observation.issueType.label)),
+                Chip(avatar: const Icon(Icons.speed_outlined, size: 18), label: Text(observation.severity.label)),
+                Chip(avatar: const Icon(Icons.event_outlined, size: 18), label: Text(ageLabel)),
               ],
             ),
-            if (entry.notes.isNotEmpty) ...[
+            if (observation.notes.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(entry.notes),
+              Text(observation.notes),
             ],
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: Text('Next spray: ${DateFormat.yMMMd().format(entry.nextSprayDate)}')),
-                FilledButton.tonalIcon(
-                  onPressed: onMarkSprayed,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Sprayed'),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -392,78 +457,69 @@ class _PestSprayEntryCard extends StatelessWidget {
   }
 }
 
-class _PestSprayEntryForm extends StatefulWidget {
-  const _PestSprayEntryForm({required this.problems, required this.onSave, this.entry});
+class _PestObservationForm extends StatefulWidget {
+  const _PestObservationForm({required this.problems, required this.onSave, this.observation});
 
   final List<PestProblem> problems;
-  final PestSprayEntry? entry;
-  final ValueChanged<PestSprayEntry> onSave;
+  final PestObservation? observation;
+  final ValueChanged<PestObservation> onSave;
 
   @override
-  State<_PestSprayEntryForm> createState() => _PestSprayEntryFormState();
+  State<_PestObservationForm> createState() => _PestObservationFormState();
 }
 
-class _PestSprayEntryFormState extends State<_PestSprayEntryForm> {
+class _PestObservationFormState extends State<_PestObservationForm> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _titleController;
+  late final TextEditingController _nameController;
   late final TextEditingController _cropController;
-  late final TextEditingController _treatmentController;
   late final TextEditingController _notesController;
   late PestIssueType _issueType;
   late PestSeverity _severity;
-  late int _intervalDays;
-  late DateTime _nextSprayDate;
+  late DateTime _sightedDate;
 
   @override
   void initState() {
     super.initState();
-    final entry = widget.entry;
-    _titleController = TextEditingController(text: entry?.title ?? '');
-    _cropController = TextEditingController(text: entry?.cropOrArea ?? '');
-    _treatmentController = TextEditingController(text: entry?.treatment ?? 'Fungus spray');
-    _notesController = TextEditingController(text: entry?.notes ?? '');
-    _issueType = entry?.issueType ?? PestIssueType.fungus;
-    _severity = entry?.severity ?? PestSeverity.medium;
-    _intervalDays = entry?.intervalDays ?? 7;
-    _nextSprayDate = entry?.nextSprayDate ?? DateUtils.dateOnly(DateTime.now());
+    final observation = widget.observation;
+    _nameController = TextEditingController(text: observation?.name ?? '');
+    _cropController = TextEditingController(text: observation?.cropOrArea ?? '');
+    _notesController = TextEditingController(text: observation?.notes ?? '');
+    _issueType = observation?.issueType ?? PestIssueType.pest;
+    _severity = observation?.severity ?? PestSeverity.medium;
+    _sightedDate = observation?.sightedDate ?? DateUtils.dateOnly(DateTime.now());
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
+    _nameController.dispose();
     _cropController.dispose();
-    _treatmentController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickNextSprayDate() async {
+  Future<void> _pickSightedDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _nextSprayDate,
+      initialDate: _sightedDate,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 730)),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
     );
-    if (picked != null) setState(() => _nextSprayDate = DateUtils.dateOnly(picked));
+    if (picked != null) setState(() => _sightedDate = DateUtils.dateOnly(picked));
   }
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
 
-    final current = widget.entry;
+    final current = widget.observation;
     widget.onSave(
-      PestSprayEntry(
+      PestObservation(
         id: current?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-        title: _titleController.text.trim(),
+        name: _nameController.text.trim(),
         cropOrArea: _cropController.text.trim(),
         issueType: _issueType,
         severity: _severity,
-        treatment: _treatmentController.text.trim(),
         notes: _notesController.text.trim(),
-        intervalDays: _intervalDays,
-        firstSeenDate: current?.firstSeenDate ?? DateUtils.dateOnly(DateTime.now()),
-        lastSprayedDate: current?.lastSprayedDate,
-        nextSprayDate: _nextSprayDate,
+        sightedDate: _sightedDate,
       ),
     );
   }
@@ -484,7 +540,7 @@ class _PestSprayEntryFormState extends State<_PestSprayEntryForm> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            Text(widget.entry == null ? 'Add pest or fungus issue' : 'Edit issue', style: Theme.of(context).textTheme.titleLarge),
+            Text(widget.observation == null ? 'Add pest sighting' : 'Edit pest sighting', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             DropdownButtonFormField<PestIssueType>(
               value: _issueType,
@@ -497,30 +553,19 @@ class _PestSprayEntryFormState extends State<_PestSprayEntryForm> {
               },
             ),
             const SizedBox(height: 12),
-            Autocomplete<String>(
-              optionsBuilder: (value) {
-                final query = value.text.trim().toLowerCase();
-                if (query.isEmpty) return problemNames.take(8);
-                return problemNames.where((name) => name.toLowerCase().contains(query)).take(8);
-              },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                if (controller.text.isEmpty && _titleController.text.isNotEmpty) {
-                  controller.text = _titleController.text;
-                }
-                controller.addListener(() => _titleController.text = controller.text);
-                return TextFormField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: const InputDecoration(labelText: 'Pest, fungus, or symptom', border: OutlineInputBorder()),
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Add the issue name.' : null,
-                );
-              },
-              onSelected: (value) => _titleController.text = value,
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Pest or symptom',
+                hintText: problemNames.isEmpty ? 'Example: Aphids' : 'Example: ${problemNames.first}',
+                border: const OutlineInputBorder(),
+              ),
+              validator: (value) => value == null || value.trim().isEmpty ? 'Add the pest or symptom.' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _cropController,
-              decoration: const InputDecoration(labelText: 'Crop or area', hintText: 'Tomatoes, roses, greenhouse...', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Crop or area', hintText: 'Tomatoes, citrus, greenhouse...', border: OutlineInputBorder()),
               validator: (value) => value == null || value.trim().isEmpty ? 'Add the crop or area.' : null,
             ),
             const SizedBox(height: 12),
@@ -535,26 +580,10 @@ class _PestSprayEntryFormState extends State<_PestSprayEntryForm> {
               },
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _treatmentController,
-              decoration: const InputDecoration(labelText: 'Treatment / spray', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              value: _intervalDays,
-              decoration: const InputDecoration(labelText: 'Repeat spray every', border: OutlineInputBorder()),
-              items: const [3, 5, 7, 10, 14, 21]
-                  .map((days) => DropdownMenuItem(value: days, child: Text('$days days')))
-                  .toList(growable: false),
-              onChanged: (value) {
-                if (value != null) setState(() => _intervalDays = value);
-              },
-            ),
-            const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: _pickNextSprayDate,
+              onPressed: _pickSightedDate,
               icon: const Icon(Icons.event_outlined),
-              label: Text('Next spray: ${DateFormat.yMMMd().format(_nextSprayDate)}'),
+              label: Text('Sighted: ${DateFormat.yMMMd().format(_sightedDate)}'),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -564,7 +593,7 @@ class _PestSprayEntryFormState extends State<_PestSprayEntryForm> {
               maxLines: 4,
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(onPressed: _save, icon: const Icon(Icons.save_outlined), label: const Text('Save schedule')),
+            FilledButton.icon(onPressed: _save, icon: const Icon(Icons.save_outlined), label: const Text('Save sighting')),
           ],
         ),
       ),
@@ -575,7 +604,7 @@ class _PestSprayEntryFormState extends State<_PestSprayEntryForm> {
 enum PestIssueType {
   pest('Pest', Icons.bug_report_outlined),
   fungus('Fungus / disease', Icons.coronavirus_outlined),
-  prevention('Prevention', Icons.health_and_safety_outlined);
+  prevention('Risk watch', Icons.health_and_safety_outlined);
 
   const PestIssueType(this.label, this.icon);
   final String label;
@@ -591,120 +620,235 @@ enum PestSeverity {
   final String label;
 }
 
-class PestSprayEntry {
-  const PestSprayEntry({
-    required this.id,
-    required this.title,
-    required this.cropOrArea,
-    required this.issueType,
-    required this.severity,
-    required this.treatment,
-    required this.notes,
-    required this.intervalDays,
-    required this.firstSeenDate,
-    required this.lastSprayedDate,
-    required this.nextSprayDate,
+enum PestPressureLevel {
+  low('Low location pressure', Icons.check_circle_outline),
+  moderate('Moderate location pressure', Icons.warning_amber_outlined),
+  high('High location pressure', Icons.notification_important_outlined);
+
+  const PestPressureLevel(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
+class PestPressureReport {
+  const PestPressureReport({
+    required this.level,
+    required this.score,
+    required this.recentSightings,
+    required this.message,
+    required this.alerts,
   });
 
-  final String id;
-  final String title;
-  final String cropOrArea;
-  final PestIssueType issueType;
-  final PestSeverity severity;
-  final String treatment;
-  final String notes;
-  final int intervalDays;
-  final DateTime firstSeenDate;
-  final DateTime? lastSprayedDate;
-  final DateTime nextSprayDate;
+  final PestPressureLevel level;
+  final int score;
+  final int recentSightings;
+  final String message;
+  final List<String> alerts;
 
-  PestSprayEntry copyWith({DateTime? lastSprayedDate, DateTime? nextSprayDate}) {
-    return PestSprayEntry(
-      id: id,
-      title: title,
-      cropOrArea: cropOrArea,
-      issueType: issueType,
-      severity: severity,
-      treatment: treatment,
-      notes: notes,
-      intervalDays: intervalDays,
-      firstSeenDate: firstSeenDate,
-      lastSprayedDate: lastSprayedDate ?? this.lastSprayedDate,
-      nextSprayDate: nextSprayDate ?? this.nextSprayDate,
-    );
-  }
+  factory PestPressureReport.calculate({
+    required NzRegion region,
+    required List<PestObservation> observations,
+    required DateTime date,
+  }) {
+    var score = 1;
+    final month = date.month;
+    final isWarmSeason = const [12, 1, 2, 3].contains(month);
+    final isShoulderSeason = const [4, 5, 9, 10, 11].contains(month);
+    final isFungusSeason = const [4, 5, 9, 10, 11, 12, 1, 2, 3].contains(month);
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'cropOrArea': cropOrArea,
-        'issueType': issueType.name,
-        'severity': severity.name,
-        'treatment': treatment,
-        'notes': notes,
-        'intervalDays': intervalDays,
-        'firstSeenDate': firstSeenDate.toIso8601String(),
-        'lastSprayedDate': lastSprayedDate?.toIso8601String(),
-        'nextSprayDate': nextSprayDate.toIso8601String(),
-      };
+    if (_warmHumidRegionIds.contains(region.id)) score += 2;
+    if (_fungusRiskRegionIds.contains(region.id)) score += 1;
+    if (isWarmSeason) score += 3;
+    if (isShoulderSeason) score += 2;
 
-  factory PestSprayEntry.fromJson(Map<String, dynamic> json) {
-    return PestSprayEntry(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      cropOrArea: json['cropOrArea'] as String,
-      issueType: PestIssueType.values.byName(json['issueType'] as String),
-      severity: PestSeverity.values.byName(json['severity'] as String),
-      treatment: json['treatment'] as String? ?? '',
-      notes: json['notes'] as String? ?? '',
-      intervalDays: json['intervalDays'] as int,
-      firstSeenDate: DateTime.parse(json['firstSeenDate'] as String),
-      lastSprayedDate: json['lastSprayedDate'] == null ? null : DateTime.parse(json['lastSprayedDate'] as String),
-      nextSprayDate: DateTime.parse(json['nextSprayDate'] as String),
+    final recentObservations = observations.where((observation) {
+      final age = date.difference(observation.sightedDate).inDays;
+      return age >= 0 && age <= 14;
+    }).toList(growable: false);
+
+    final recentHighPressure = recentObservations.where((observation) => observation.severity == PestSeverity.high).length;
+    final recentFungus = recentObservations.where((observation) => observation.issueType == PestIssueType.fungus).length;
+
+    score += recentObservations.length > 3 ? 3 : recentObservations.length;
+    score += recentHighPressure * 2;
+    if (recentFungus > 0 && isFungusSeason) score += 2;
+
+    final PestPressureLevel level;
+    if (score >= 8) {
+      level = PestPressureLevel.high;
+    } else if (score >= 5) {
+      level = PestPressureLevel.moderate;
+    } else {
+      level = PestPressureLevel.low;
+    }
+
+    final alerts = <String>[];
+    if (level == PestPressureLevel.high) {
+      alerts.add('Inspect leaves, stems, and new growth every 2–3 days in ${region.name}.');
+      alerts.add('Act early: remove badly affected leaves and isolate heavily infested plants.');
+    } else if (level == PestPressureLevel.moderate) {
+      alerts.add('Check vulnerable crops this week and record any new sightings.');
+    } else {
+      alerts.add('Low pressure: keep monitoring and maintain airflow around plants.');
+    }
+
+    if ((_fungusRiskRegionIds.contains(region.id) || recentFungus > 0) && isFungusSeason) {
+      alerts.add('Fungus watch: avoid wet leaves overnight and improve airflow around dense growth.');
+    }
+
+    return PestPressureReport(
+      level: level,
+      score: score,
+      recentSightings: recentObservations.length,
+      message: '${region.name}: ${region.climateSummary}',
+      alerts: alerts,
     );
   }
 }
 
-class PestSprayScheduleStore {
-  const PestSprayScheduleStore();
+class PestObservation {
+  const PestObservation({
+    required this.id,
+    required this.name,
+    required this.cropOrArea,
+    required this.issueType,
+    required this.severity,
+    required this.notes,
+    required this.sightedDate,
+  });
 
-  static const _entriesKey = 'pestSpray.entries';
+  final String id;
+  final String name;
+  final String cropOrArea;
+  final PestIssueType issueType;
+  final PestSeverity severity;
+  final String notes;
+  final DateTime sightedDate;
 
-  Future<List<PestSprayEntry>> loadEntries() async {
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'cropOrArea': cropOrArea,
+        'issueType': issueType.name,
+        'severity': severity.name,
+        'notes': notes,
+        'sightedDate': sightedDate.toIso8601String(),
+      };
+
+  factory PestObservation.fromJson(Map<String, dynamic> json) {
+    return PestObservation(
+      id: json['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      name: json['name'] as String? ?? json['title'] as String? ?? 'Pest sighting',
+      cropOrArea: json['cropOrArea'] as String? ?? 'Garden',
+      issueType: _enumByName(PestIssueType.values, json['issueType'], PestIssueType.pest),
+      severity: _enumByName(PestSeverity.values, json['severity'], PestSeverity.medium),
+      notes: json['notes'] as String? ?? '',
+      sightedDate: _dateOnlyFromJson(json['sightedDate'] ?? json['firstSeenDate']),
+    );
+  }
+}
+
+class PestTrackerStore {
+  const PestTrackerStore();
+
+  static const _observationsKey = 'pestTracker.observations';
+  static const _legacySprayEntriesKey = 'pestSpray.entries';
+  static const _regionKey = 'pestTracker.regionId';
+
+  Future<List<PestObservation>> loadObservations() async {
     final prefs = await SharedPreferences.getInstance();
-    final rawEntries = prefs.getStringList(_entriesKey) ?? const [];
-    return rawEntries
-        .map((raw) => PestSprayEntry.fromJson(jsonDecode(raw) as Map<String, dynamic>))
+    final rawObservations = prefs.getStringList(_observationsKey) ?? const [];
+
+    if (rawObservations.isNotEmpty) {
+      return rawObservations
+          .map((raw) => PestObservation.fromJson(jsonDecode(raw) as Map<String, dynamic>))
+          .toList(growable: false);
+    }
+
+    final legacyEntries = prefs.getStringList(_legacySprayEntriesKey) ?? const [];
+    if (legacyEntries.isEmpty) return const [];
+
+    final migrated = legacyEntries
+        .map((raw) => PestObservation.fromJson(jsonDecode(raw) as Map<String, dynamic>))
         .toList(growable: false);
+    await _saveObservations(migrated);
+    return migrated;
   }
 
-  Future<void> upsertEntry(PestSprayEntry entry) async {
-    final entries = await loadEntries();
-    final nextEntries = [
-      for (final existing in entries)
-        if (existing.id != entry.id) existing,
-      entry,
+  Future<void> upsertObservation(PestObservation observation) async {
+    final observations = await loadObservations();
+    final nextObservations = [
+      for (final existing in observations)
+        if (existing.id != observation.id) existing,
+      observation,
     ];
-    await _saveEntries(nextEntries);
+    await _saveObservations(nextObservations);
   }
 
-  Future<void> deleteEntry(String id) async {
-    final entries = await loadEntries();
-    await _saveEntries(entries.where((entry) => entry.id != id).toList(growable: false));
+  Future<void> deleteObservation(String id) async {
+    final observations = await loadObservations();
+    await _saveObservations(observations.where((observation) => observation.id != id).toList(growable: false));
   }
 
-  Future<void> _saveEntries(List<PestSprayEntry> entries) async {
+  Future<String> loadSelectedRegionId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_regionKey) ?? _fallbackRegion.id;
+  }
+
+  Future<void> saveSelectedRegionId(String regionId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_regionKey, regionId);
+  }
+
+  Future<void> _saveObservations(List<PestObservation> observations) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
-      _entriesKey,
-      entries.map((entry) => jsonEncode(entry.toJson())).toList(growable: false),
+      _observationsKey,
+      observations.map((observation) => jsonEncode(observation.toJson())).toList(growable: false),
     );
   }
 }
 
 class _PestTrackerData {
-  const _PestTrackerData({required this.problems, required this.entries});
+  const _PestTrackerData({
+    required this.problems,
+    required this.regions,
+    required this.observations,
+    required this.selectedRegionId,
+  });
+
+  factory _PestTrackerData.empty() {
+    return const _PestTrackerData(
+      problems: [],
+      regions: [_fallbackRegion],
+      observations: [],
+      selectedRegionId: 'auckland',
+    );
+  }
 
   final List<PestProblem> problems;
-  final List<PestSprayEntry> entries;
+  final List<NzRegion> regions;
+  final List<PestObservation> observations;
+  final String selectedRegionId;
+
+  NzRegion get selectedRegion {
+    if (regions.isEmpty) return _fallbackRegion;
+    return regions.firstWhere(
+      (region) => region.id == selectedRegionId,
+      orElse: () => regions.first,
+    );
+  }
+}
+
+T _enumByName<T extends Enum>(List<T> values, Object? name, T fallback) {
+  final text = name?.toString();
+  return values.firstWhere((value) => value.name == text, orElse: () => fallback);
+}
+
+DateTime _dateOnlyFromJson(Object? value) {
+  if (value is String && value.trim().isNotEmpty) {
+    return DateUtils.dateOnly(DateTime.parse(value));
+  }
+
+  return DateUtils.dateOnly(DateTime.now());
 }

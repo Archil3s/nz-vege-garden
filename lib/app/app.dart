@@ -9,7 +9,7 @@ class NzVegeGardenApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Pest & Spray Planner',
+      title: 'Pest Tracker',
       theme: buildAppTheme(),
       home: const PestTrackerScreen(),
       debugShowCheckedModeBanner: false,

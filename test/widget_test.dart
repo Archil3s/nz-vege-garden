@@ -10,7 +10,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Pest & spray planner'), findsOneWidget);
-    expect(find.text('Track pest pressure and keep fungus spraying on schedule.'), findsOneWidget);
+    expect(find.text('Pest pressure tracker'), findsOneWidget);
+    expect(find.text('Location pest pressure notifier'), findsOneWidget);
   });
 }

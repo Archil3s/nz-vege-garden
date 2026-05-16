@@ -17,19 +17,8 @@ const _fallbackRegion = NzRegion(
   defaultWindRisk: 'moderate',
 );
 
-const _warmHumidRegionIds = {
-  'northland',
-  'auckland',
-  'waikato_bay_of_plenty',
-};
-
-const _fungusRiskRegionIds = {
-  'northland',
-  'auckland',
-  'waikato_bay_of_plenty',
-  'taranaki_manawatu',
-  'west_coast',
-};
+const _warmHumidRegionIds = {'northland', 'auckland', 'waikato_bay_of_plenty'};
+const _fungusRiskRegionIds = {'northland', 'auckland', 'waikato_bay_of_plenty', 'taranaki_manawatu', 'west_coast'};
 
 class PestTrackerScreen extends StatefulWidget {
   const PestTrackerScreen({super.key});
@@ -54,21 +43,26 @@ class _PestTrackerScreenState extends State<PestTrackerScreen> {
     final regions = await _repository.loadRegions();
     final observations = await _store.loadObservations();
     final selectedRegionId = await _store.loadSelectedRegionId();
+    final weather = await _store.loadWeather();
 
     return _PestTrackerData(
       problems: problems,
       regions: regions,
       observations: observations,
       selectedRegionId: selectedRegionId,
+      weather: weather,
     );
   }
 
-  Future<void> _reload() async {
-    setState(() => _dataFuture = _loadData());
-  }
+  Future<void> _reload() async => setState(() => _dataFuture = _loadData());
 
   Future<void> _setRegion(String regionId) async {
     await _store.saveSelectedRegionId(regionId);
+    await _reload();
+  }
+
+  Future<void> _setWeather(WeatherConditions weather) async {
+    await _store.saveWeather(weather);
     await _reload();
   }
 
@@ -101,11 +95,11 @@ class _PestTrackerScreenState extends State<PestTrackerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pest pressure tracker')),
+      appBar: AppBar(title: const Text('Pest tracker')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openObservationForm(),
         icon: const Icon(Icons.add),
-        label: const Text('Add sighting'),
+        label: const Text('Add pest'),
       ),
       body: FutureBuilder<_PestTrackerData>(
         future: _dataFuture,
@@ -124,29 +118,37 @@ class _PestTrackerScreenState extends State<PestTrackerScreen> {
           }
 
           final data = snapshot.data ?? _PestTrackerData.empty();
-          final sortedObservations = data.observations.toList()
-            ..sort((a, b) => b.sightedDate.compareTo(a.sightedDate));
+          final observations = data.observations.toList()..sort((a, b) => b.sightedDate.compareTo(a.sightedDate));
+          final report = PestPressureReport.calculate(
+            region: data.selectedRegion,
+            weather: data.weather,
+            observations: observations,
+            date: DateUtils.dateOnly(DateTime.now()),
+          );
 
           return RefreshIndicator(
             onRefresh: _reload,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
               children: [
-                _LocationPressureNotifierCard(
+                _PressureCard(report: report, region: data.selectedRegion, observations: observations),
+                const SizedBox(height: 12),
+                _WeatherCard(
                   region: data.selectedRegion,
                   regions: data.regions.isEmpty ? const [_fallbackRegion] : data.regions,
-                  observations: sortedObservations,
+                  weather: data.weather,
                   onRegionChanged: _setRegion,
+                  onWeatherChanged: _setWeather,
                 ),
                 const SizedBox(height: 12),
                 _PestReferenceCard(problems: data.problems),
                 const SizedBox(height: 16),
                 Text('Pest sightings', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
-                if (sortedObservations.isEmpty)
+                if (observations.isEmpty)
                   _EmptyTrackerCard(onAdd: () => _openObservationForm())
                 else
-                  ...sortedObservations.map(
+                  ...observations.map(
                     (observation) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _PestObservationCard(
@@ -165,57 +167,23 @@ class _PestTrackerScreenState extends State<PestTrackerScreen> {
   }
 }
 
-class _LocationPressureNotifierCard extends StatelessWidget {
-  const _LocationPressureNotifierCard({
-    required this.region,
-    required this.regions,
-    required this.observations,
-    required this.onRegionChanged,
-  });
+class _PressureCard extends StatelessWidget {
+  const _PressureCard({required this.report, required this.region, required this.observations});
 
+  final PestPressureReport report;
   final NzRegion region;
-  final List<NzRegion> regions;
   final List<PestObservation> observations;
-  final ValueChanged<String> onRegionChanged;
 
   @override
   Widget build(BuildContext context) {
-    final report = PestPressureReport.calculate(
-      region: region,
-      observations: observations,
-      date: DateUtils.dateOnly(DateTime.now()),
-    );
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Location pest pressure notifier', style: Theme.of(context).textTheme.titleLarge),
+            Text('Pest pressure', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            const Text('Choose your NZ region. The app combines local climate risk, season, and recent sightings to show pest pressure.'),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              value: region.id,
-              decoration: const InputDecoration(
-                labelText: 'Location',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.location_on_outlined),
-              ),
-              items: regions
-                  .map(
-                    (item) => DropdownMenuItem(
-                      value: item.id,
-                      child: Text(item.name),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (value) {
-                if (value != null) onRegionChanged(value);
-              },
-            ),
-            const SizedBox(height: 12),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(report.level.icon),
@@ -226,33 +194,91 @@ class _LocationPressureNotifierCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                Chip(
-                  avatar: const Icon(Icons.eco_outlined, size: 18),
-                  label: Text(region.name),
-                ),
-                Chip(
-                  avatar: const Icon(Icons.calendar_month_outlined, size: 18),
-                  label: Text(DateFormat.MMMM().format(DateTime.now())),
-                ),
-                Chip(
-                  avatar: const Icon(Icons.bug_report_outlined, size: 18),
-                  label: Text('${report.recentSightings} recent sightings'),
-                ),
+                Chip(avatar: const Icon(Icons.place_outlined, size: 18), label: Text(region.name)),
+                Chip(avatar: const Icon(Icons.wb_sunny_outlined, size: 18), label: Text(report.weatherLabel)),
+                Chip(avatar: const Icon(Icons.bug_report_outlined, size: 18), label: Text('${report.recentSightings} recent sightings')),
               ],
             ),
             const SizedBox(height: 10),
-            ...report.alerts.map(
-              (alert) => Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.notifications_active_outlined, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(alert)),
-                  ],
-                ),
-              ),
+            ...report.alerts.map((alert) => Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.notifications_active_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(alert)),
+                    ],
+                  ),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WeatherCard extends StatelessWidget {
+  const _WeatherCard({
+    required this.region,
+    required this.regions,
+    required this.weather,
+    required this.onRegionChanged,
+    required this.onWeatherChanged,
+  });
+
+  final NzRegion region;
+  final List<NzRegion> regions;
+  final WeatherConditions weather;
+  final ValueChanged<String> onRegionChanged;
+  final ValueChanged<WeatherConditions> onWeatherChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Weather information', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(region.climateSummary),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: region.id,
+              decoration: const InputDecoration(labelText: 'Region', border: OutlineInputBorder(), prefixIcon: Icon(Icons.location_on_outlined)),
+              items: regions.map((item) => DropdownMenuItem(value: item.id, child: Text(item.name))).toList(growable: false),
+              onChanged: (value) {
+                if (value != null) onRegionChanged(value);
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<TemperatureBand>(
+              value: weather.temperature,
+              decoration: const InputDecoration(labelText: 'Temperature', border: OutlineInputBorder(), prefixIcon: Icon(Icons.thermostat_outlined)),
+              items: TemperatureBand.values.map((item) => DropdownMenuItem(value: item, child: Text(item.label))).toList(growable: false),
+              onChanged: (value) {
+                if (value != null) onWeatherChanged(weather.copyWith(temperature: value));
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<MoistureBand>(
+              value: weather.moisture,
+              decoration: const InputDecoration(labelText: 'Humidity / leaf wetness', border: OutlineInputBorder(), prefixIcon: Icon(Icons.water_drop_outlined)),
+              items: MoistureBand.values.map((item) => DropdownMenuItem(value: item, child: Text(item.label))).toList(growable: false),
+              onChanged: (value) {
+                if (value != null) onWeatherChanged(weather.copyWith(moisture: value));
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<WindBand>(
+              value: weather.wind,
+              decoration: const InputDecoration(labelText: 'Wind / airflow', border: OutlineInputBorder(), prefixIcon: Icon(Icons.air_outlined)),
+              items: WindBand.values.map((item) => DropdownMenuItem(value: item, child: Text(item.label))).toList(growable: false),
+              onChanged: (value) {
+                if (value != null) onWeatherChanged(weather.copyWith(wind: value));
+              },
             ),
           ],
         ),
@@ -263,7 +289,6 @@ class _LocationPressureNotifierCard extends StatelessWidget {
 
 class _PestReferenceCard extends StatefulWidget {
   const _PestReferenceCard({required this.problems});
-
   final List<PestProblem> problems;
 
   @override
@@ -278,10 +303,7 @@ class _PestReferenceCardState extends State<_PestReferenceCard> {
     final query = _query.trim().toLowerCase();
     final matches = widget.problems.where((problem) {
       if (query.isEmpty) return problem.category == 'pest' || problem.category == 'disease';
-      return [problem.name, problem.summary, ...problem.signs, ...problem.actions, ...problem.prevention]
-          .join(' ')
-          .toLowerCase()
-          .contains(query);
+      return [problem.name, problem.summary, ...problem.signs, ...problem.actions, ...problem.prevention].join(' ').toLowerCase().contains(query);
     }).take(6).toList(growable: false);
 
     return Card(
@@ -316,7 +338,6 @@ class _PestReferenceCardState extends State<_PestReferenceCard> {
 
 class _ProblemReferenceTile extends StatelessWidget {
   const _ProblemReferenceTile({required this.problem});
-
   final PestProblem problem;
 
   @override
@@ -338,7 +359,6 @@ class _ProblemReferenceTile extends StatelessWidget {
 
 class _MiniSection extends StatelessWidget {
   const _MiniSection({required this.title, required this.items});
-
   final String title;
   final List<String> items;
 
@@ -360,7 +380,6 @@ class _MiniSection extends StatelessWidget {
 
 class _EmptyTrackerCard extends StatelessWidget {
   const _EmptyTrackerCard({required this.onAdd});
-
   final VoidCallback onAdd;
 
   @override
@@ -373,9 +392,9 @@ class _EmptyTrackerCard extends StatelessWidget {
           children: [
             Text('No pest sightings tracked yet.', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            const Text('Add sightings as you find them. The pressure notifier uses recent entries to raise or lower risk.'),
+            const Text('Add sightings as you find them. Weather and recent entries control the pest pressure level.'),
             const SizedBox(height: 12),
-            FilledButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: const Text('Add first sighting')),
+            FilledButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: const Text('Add first pest')),
           ],
         ),
       ),
@@ -384,25 +403,15 @@ class _EmptyTrackerCard extends StatelessWidget {
 }
 
 class _PestObservationCard extends StatelessWidget {
-  const _PestObservationCard({
-    required this.observation,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
+  const _PestObservationCard({required this.observation, required this.onEdit, required this.onDelete});
   final PestObservation observation;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final today = DateUtils.dateOnly(DateTime.now());
-    final ageDays = today.difference(observation.sightedDate).inDays;
-    final ageLabel = ageDays == 0
-        ? 'Seen today'
-        : ageDays == 1
-            ? 'Seen yesterday'
-            : 'Seen $ageDays days ago';
+    final ageDays = DateUtils.dateOnly(DateTime.now()).difference(observation.sightedDate).inDays;
+    final ageLabel = ageDays == 0 ? 'Seen today' : ageDays == 1 ? 'Seen yesterday' : 'Seen $ageDays days ago';
 
     return Card(
       child: Padding(
@@ -459,7 +468,6 @@ class _PestObservationCard extends StatelessWidget {
 
 class _PestObservationForm extends StatefulWidget {
   const _PestObservationForm({required this.problems, required this.onSave, this.observation});
-
   final List<PestProblem> problems;
   final PestObservation? observation;
   final ValueChanged<PestObservation> onSave;
@@ -509,32 +517,23 @@ class _PestObservationFormState extends State<_PestObservationForm> {
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
-
     final current = widget.observation;
-    widget.onSave(
-      PestObservation(
-        id: current?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-        name: _nameController.text.trim(),
-        cropOrArea: _cropController.text.trim(),
-        issueType: _issueType,
-        severity: _severity,
-        notes: _notesController.text.trim(),
-        sightedDate: _sightedDate,
-      ),
-    );
+    widget.onSave(PestObservation(
+      id: current?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      name: _nameController.text.trim(),
+      cropOrArea: _cropController.text.trim(),
+      issueType: _issueType,
+      severity: _severity,
+      notes: _notesController.text.trim(),
+      sightedDate: _sightedDate,
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     final problemNames = widget.problems.map((problem) => problem.name).toList(growable: false)..sort();
-
     return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
+      padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(context).viewInsets.bottom + 16),
       child: Form(
         key: _formKey,
         child: ListView(
@@ -545,9 +544,7 @@ class _PestObservationFormState extends State<_PestObservationForm> {
             DropdownButtonFormField<PestIssueType>(
               value: _issueType,
               decoration: const InputDecoration(labelText: 'Issue type', border: OutlineInputBorder()),
-              items: PestIssueType.values
-                  .map((type) => DropdownMenuItem(value: type, child: Text(type.label)))
-                  .toList(growable: false),
+              items: PestIssueType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.label))).toList(growable: false),
               onChanged: (value) {
                 if (value != null) setState(() => _issueType = value);
               },
@@ -572,26 +569,15 @@ class _PestObservationFormState extends State<_PestObservationForm> {
             DropdownButtonFormField<PestSeverity>(
               value: _severity,
               decoration: const InputDecoration(labelText: 'Pressure level', border: OutlineInputBorder()),
-              items: PestSeverity.values
-                  .map((severity) => DropdownMenuItem(value: severity, child: Text(severity.label)))
-                  .toList(growable: false),
+              items: PestSeverity.values.map((severity) => DropdownMenuItem(value: severity, child: Text(severity.label))).toList(growable: false),
               onChanged: (value) {
                 if (value != null) setState(() => _severity = value);
               },
             ),
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _pickSightedDate,
-              icon: const Icon(Icons.event_outlined),
-              label: Text('Sighted: ${DateFormat.yMMMd().format(_sightedDate)}'),
-            ),
+            OutlinedButton.icon(onPressed: _pickSightedDate, icon: const Icon(Icons.event_outlined), label: Text('Sighted: ${DateFormat.yMMMd().format(_sightedDate)}')),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _notesController,
-              decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()),
-              minLines: 2,
-              maxLines: 4,
-            ),
+            TextFormField(controller: _notesController, decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()), minLines: 2, maxLines: 4),
             const SizedBox(height: 16),
             FilledButton.icon(onPressed: _save, icon: const Icon(Icons.save_outlined), label: const Text('Save sighting')),
           ],
@@ -605,7 +591,6 @@ enum PestIssueType {
   pest('Pest', Icons.bug_report_outlined),
   fungus('Fungus / disease', Icons.coronavirus_outlined),
   prevention('Risk watch', Icons.health_and_safety_outlined);
-
   const PestIssueType(this.label, this.icon);
   final String label;
   final IconData icon;
@@ -615,41 +600,83 @@ enum PestSeverity {
   low('Low pressure'),
   medium('Medium pressure'),
   high('High pressure');
-
   const PestSeverity(this.label);
   final String label;
 }
 
 enum PestPressureLevel {
-  low('Low location pressure', Icons.check_circle_outline),
-  moderate('Moderate location pressure', Icons.warning_amber_outlined),
-  high('High location pressure', Icons.notification_important_outlined);
-
+  low('Low pressure', Icons.check_circle_outline),
+  moderate('Moderate pressure', Icons.warning_amber_outlined),
+  high('High pressure', Icons.notification_important_outlined);
   const PestPressureLevel(this.label, this.icon);
   final String label;
   final IconData icon;
 }
 
+enum TemperatureBand {
+  cool('Cool'),
+  mild('Mild'),
+  warm('Warm'),
+  hot('Hot');
+  const TemperatureBand(this.label);
+  final String label;
+}
+
+enum MoistureBand {
+  dry('Dry'),
+  normal('Normal'),
+  humid('Humid / wet leaves'),
+  rainy('Rainy');
+  const MoistureBand(this.label);
+  final String label;
+}
+
+enum WindBand {
+  sheltered('Sheltered'),
+  breezy('Breezy'),
+  windy('Windy');
+  const WindBand(this.label);
+  final String label;
+}
+
+class WeatherConditions {
+  const WeatherConditions({required this.temperature, required this.moisture, required this.wind});
+  static const defaults = WeatherConditions(temperature: TemperatureBand.mild, moisture: MoistureBand.normal, wind: WindBand.breezy);
+
+  final TemperatureBand temperature;
+  final MoistureBand moisture;
+  final WindBand wind;
+
+  WeatherConditions copyWith({TemperatureBand? temperature, MoistureBand? moisture, WindBand? wind}) {
+    return WeatherConditions(
+      temperature: temperature ?? this.temperature,
+      moisture: moisture ?? this.moisture,
+      wind: wind ?? this.wind,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {'temperature': temperature.name, 'moisture': moisture.name, 'wind': wind.name};
+
+  factory WeatherConditions.fromJson(Map<String, dynamic> json) {
+    return WeatherConditions(
+      temperature: _enumByName(TemperatureBand.values, json['temperature'], TemperatureBand.mild),
+      moisture: _enumByName(MoistureBand.values, json['moisture'], MoistureBand.normal),
+      wind: _enumByName(WindBand.values, json['wind'], WindBand.breezy),
+    );
+  }
+}
+
 class PestPressureReport {
-  const PestPressureReport({
-    required this.level,
-    required this.score,
-    required this.recentSightings,
-    required this.message,
-    required this.alerts,
-  });
+  const PestPressureReport({required this.level, required this.score, required this.recentSightings, required this.message, required this.weatherLabel, required this.alerts});
 
   final PestPressureLevel level;
   final int score;
   final int recentSightings;
   final String message;
+  final String weatherLabel;
   final List<String> alerts;
 
-  factory PestPressureReport.calculate({
-    required NzRegion region,
-    required List<PestObservation> observations,
-    required DateTime date,
-  }) {
+  factory PestPressureReport.calculate({required NzRegion region, required WeatherConditions weather, required List<PestObservation> observations, required DateTime date}) {
     var score = 1;
     final month = date.month;
     final isWarmSeason = const [12, 1, 2, 3].contains(month);
@@ -658,14 +685,16 @@ class PestPressureReport {
 
     if (_warmHumidRegionIds.contains(region.id)) score += 2;
     if (_fungusRiskRegionIds.contains(region.id)) score += 1;
-    if (isWarmSeason) score += 3;
-    if (isShoulderSeason) score += 2;
+    if (isWarmSeason) score += 2;
+    if (isShoulderSeason) score += 1;
+    if (weather.temperature == TemperatureBand.warm || weather.temperature == TemperatureBand.hot) score += 2;
+    if (weather.moisture == MoistureBand.humid || weather.moisture == MoistureBand.rainy) score += 2;
+    if (weather.wind == WindBand.sheltered) score += 1;
 
     final recentObservations = observations.where((observation) {
       final age = date.difference(observation.sightedDate).inDays;
       return age >= 0 && age <= 14;
     }).toList(growable: false);
-
     final recentHighPressure = recentObservations.where((observation) => observation.severity == PestSeverity.high).length;
     final recentFungus = recentObservations.where((observation) => observation.issueType == PestIssueType.fungus).length;
 
@@ -673,27 +702,20 @@ class PestPressureReport {
     score += recentHighPressure * 2;
     if (recentFungus > 0 && isFungusSeason) score += 2;
 
-    final PestPressureLevel level;
-    if (score >= 8) {
-      level = PestPressureLevel.high;
-    } else if (score >= 5) {
-      level = PestPressureLevel.moderate;
-    } else {
-      level = PestPressureLevel.low;
-    }
-
+    final level = score >= 9 ? PestPressureLevel.high : score >= 5 ? PestPressureLevel.moderate : PestPressureLevel.low;
     final alerts = <String>[];
+
     if (level == PestPressureLevel.high) {
-      alerts.add('Inspect leaves, stems, and new growth every 2–3 days in ${region.name}.');
-      alerts.add('Act early: remove badly affected leaves and isolate heavily infested plants.');
+      alerts.add('Inspect vulnerable plants every 2-3 days.');
+      alerts.add('Remove badly affected leaves and isolate heavy infestations early.');
     } else if (level == PestPressureLevel.moderate) {
-      alerts.add('Check vulnerable crops this week and record any new sightings.');
+      alerts.add('Check new growth and leaf undersides this week.');
     } else {
-      alerts.add('Low pressure: keep monitoring and maintain airflow around plants.');
+      alerts.add('Low risk: keep monitoring and maintain good airflow.');
     }
 
-    if ((_fungusRiskRegionIds.contains(region.id) || recentFungus > 0) && isFungusSeason) {
-      alerts.add('Fungus watch: avoid wet leaves overnight and improve airflow around dense growth.');
+    if ((weather.moisture == MoistureBand.humid || weather.moisture == MoistureBand.rainy || recentFungus > 0) && isFungusSeason) {
+      alerts.add('Fungus watch: avoid wet leaves overnight and improve airflow.');
     }
 
     return PestPressureReport(
@@ -701,21 +723,14 @@ class PestPressureReport {
       score: score,
       recentSightings: recentObservations.length,
       message: '${region.name}: ${region.climateSummary}',
+      weatherLabel: '${weather.temperature.label}, ${weather.moisture.label}, ${weather.wind.label}',
       alerts: alerts,
     );
   }
 }
 
 class PestObservation {
-  const PestObservation({
-    required this.id,
-    required this.name,
-    required this.cropOrArea,
-    required this.issueType,
-    required this.severity,
-    required this.notes,
-    required this.sightedDate,
-  });
+  const PestObservation({required this.id, required this.name, required this.cropOrArea, required this.issueType, required this.severity, required this.notes, required this.sightedDate});
 
   final String id;
   final String name;
@@ -725,15 +740,7 @@ class PestObservation {
   final String notes;
   final DateTime sightedDate;
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'cropOrArea': cropOrArea,
-        'issueType': issueType.name,
-        'severity': severity.name,
-        'notes': notes,
-        'sightedDate': sightedDate.toIso8601String(),
-      };
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'cropOrArea': cropOrArea, 'issueType': issueType.name, 'severity': severity.name, 'notes': notes, 'sightedDate': sightedDate.toIso8601String()};
 
   factory PestObservation.fromJson(Map<String, dynamic> json) {
     return PestObservation(
@@ -754,35 +761,26 @@ class PestTrackerStore {
   static const _observationsKey = 'pestTracker.observations';
   static const _legacySprayEntriesKey = 'pestSpray.entries';
   static const _regionKey = 'pestTracker.regionId';
+  static const _weatherKey = 'pestTracker.weather';
 
   Future<List<PestObservation>> loadObservations() async {
     final prefs = await SharedPreferences.getInstance();
     final rawObservations = prefs.getStringList(_observationsKey) ?? const [];
-
     if (rawObservations.isNotEmpty) {
-      return rawObservations
-          .map((raw) => PestObservation.fromJson(jsonDecode(raw) as Map<String, dynamic>))
-          .toList(growable: false);
+      return rawObservations.map((raw) => PestObservation.fromJson(jsonDecode(raw) as Map<String, dynamic>)).toList(growable: false);
     }
 
     final legacyEntries = prefs.getStringList(_legacySprayEntriesKey) ?? const [];
     if (legacyEntries.isEmpty) return const [];
 
-    final migrated = legacyEntries
-        .map((raw) => PestObservation.fromJson(jsonDecode(raw) as Map<String, dynamic>))
-        .toList(growable: false);
+    final migrated = legacyEntries.map((raw) => PestObservation.fromJson(jsonDecode(raw) as Map<String, dynamic>)).toList(growable: false);
     await _saveObservations(migrated);
     return migrated;
   }
 
   Future<void> upsertObservation(PestObservation observation) async {
     final observations = await loadObservations();
-    final nextObservations = [
-      for (final existing in observations)
-        if (existing.id != observation.id) existing,
-      observation,
-    ];
-    await _saveObservations(nextObservations);
+    await _saveObservations([for (final existing in observations) if (existing.id != observation.id) existing, observation]);
   }
 
   Future<void> deleteObservation(String id) async {
@@ -800,22 +798,26 @@ class PestTrackerStore {
     await prefs.setString(_regionKey, regionId);
   }
 
+  Future<WeatherConditions> loadWeather() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_weatherKey);
+    if (raw == null) return WeatherConditions.defaults;
+    return WeatherConditions.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> saveWeather(WeatherConditions weather) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_weatherKey, jsonEncode(weather.toJson()));
+  }
+
   Future<void> _saveObservations(List<PestObservation> observations) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      _observationsKey,
-      observations.map((observation) => jsonEncode(observation.toJson())).toList(growable: false),
-    );
+    await prefs.setStringList(_observationsKey, observations.map((observation) => jsonEncode(observation.toJson())).toList(growable: false));
   }
 }
 
 class _PestTrackerData {
-  const _PestTrackerData({
-    required this.problems,
-    required this.regions,
-    required this.observations,
-    required this.selectedRegionId,
-  });
+  const _PestTrackerData({required this.problems, required this.regions, required this.observations, required this.selectedRegionId, required this.weather});
 
   factory _PestTrackerData.empty() {
     return const _PestTrackerData(
@@ -823,6 +825,7 @@ class _PestTrackerData {
       regions: [_fallbackRegion],
       observations: [],
       selectedRegionId: 'auckland',
+      weather: WeatherConditions.defaults,
     );
   }
 
@@ -830,13 +833,11 @@ class _PestTrackerData {
   final List<NzRegion> regions;
   final List<PestObservation> observations;
   final String selectedRegionId;
+  final WeatherConditions weather;
 
   NzRegion get selectedRegion {
     if (regions.isEmpty) return _fallbackRegion;
-    return regions.firstWhere(
-      (region) => region.id == selectedRegionId,
-      orElse: () => regions.first,
-    );
+    return regions.firstWhere((region) => region.id == selectedRegionId, orElse: () => regions.first);
   }
 }
 
@@ -846,9 +847,6 @@ T _enumByName<T extends Enum>(List<T> values, Object? name, T fallback) {
 }
 
 DateTime _dateOnlyFromJson(Object? value) {
-  if (value is String && value.trim().isNotEmpty) {
-    return DateUtils.dateOnly(DateTime.parse(value));
-  }
-
+  if (value is String && value.trim().isNotEmpty) return DateUtils.dateOnly(DateTime.parse(value));
   return DateUtils.dateOnly(DateTime.now());
 }
